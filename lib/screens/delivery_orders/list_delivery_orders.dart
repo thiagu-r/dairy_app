@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../services/offline_storage_service.dart';
-import '../../models/loading_order.dart';
-import 'edit_load_order.dart';
+import '../../models/delivery_order.dart';
 
-class ListLoadOrders extends StatefulWidget {
+class ListDeliveryOrders extends StatefulWidget {
   @override
-  _ListLoadOrdersState createState() => _ListLoadOrdersState();
+  _ListDeliveryOrdersState createState() => _ListDeliveryOrdersState();
 }
 
-class _ListLoadOrdersState extends State<ListLoadOrders> {
+class _ListDeliveryOrdersState extends State<ListDeliveryOrders> {
   final OfflineStorageService _storageService = OfflineStorageService();
-  List<LoadingOrder> _loadingOrders = [];
+  List<DeliveryOrder> _deliveryOrders = [];
   bool _isLoading = true;
   String _selectedDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
@@ -24,9 +23,10 @@ class _ListLoadOrdersState extends State<ListLoadOrders> {
   Future<void> _loadOrders() async {
     setState(() => _isLoading = true);
     try {
-      final orders = await _storageService.getLoadingOrdersByDate(_selectedDate);
+      // For now, we'll get all orders for the selected date
+      final orders = await _storageService.getDeliveryOrdersByDate(_selectedDate);
       setState(() {
-        _loadingOrders = orders;
+        _deliveryOrders = orders;
         _isLoading = false;
       });
     } catch (e) {
@@ -58,7 +58,7 @@ class _ListLoadOrdersState extends State<ListLoadOrders> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Load Orders List'),
+        title: Text('Delivery Orders List'),
         actions: [
           IconButton(
             icon: Icon(Icons.calendar_today),
@@ -78,12 +78,12 @@ class _ListLoadOrdersState extends State<ListLoadOrders> {
           Expanded(
             child: _isLoading
                 ? Center(child: CircularProgressIndicator())
-                : _loadingOrders.isEmpty
+                : _deliveryOrders.isEmpty
                     ? Center(child: Text('No orders found for this date'))
                     : ListView.builder(
-                        itemCount: _loadingOrders.length,
+                        itemCount: _deliveryOrders.length,
                         itemBuilder: (context, index) {
-                          final order = _loadingOrders[index];
+                          final order = _deliveryOrders[index];
                           return Card(
                             margin: EdgeInsets.symmetric(
                               horizontal: 16,
@@ -92,7 +92,8 @@ class _ListLoadOrdersState extends State<ListLoadOrders> {
                             child: ExpansionTile(
                               title: Text('Order #${order.orderNumber}'),
                               subtitle: Text(
-                                'Route: ${order.routeName}\nStatus: ${order.status}',
+                                'Route: ${order.routeName}\n'
+                                'Status: ${order.status}',
                               ),
                               children: [
                                 Padding(
@@ -100,42 +101,25 @@ class _ListLoadOrdersState extends State<ListLoadOrders> {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text('Items:', style: Theme.of(context).textTheme.titleMedium),
+                                      Text('Seller: ${order.sellerName}'),
+                                      Text('Total Price: ${order.totalPrice}'),
+                                      Text('Payment Method: ${order.paymentMethod}'),
+                                      Text('Sync Status: ${order.syncStatus}'),
+                                      if (order.notes?.isNotEmpty == true)
+                                        Text('Notes: ${order.notes}'),
                                       SizedBox(height: 8),
-                                      ...order.items.map((item) => Padding(
-                                        padding: EdgeInsets.only(bottom: 8),
-                                        child: Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            Expanded(
-                                              flex: 2,
-                                              child: Text(item.productName),
-                                            ),
-                                            Expanded(
-                                              flex: 1,
-                                              child: Text('Qty: ${item.loadedQuantity}'),
-                                            ),
-                                            Expanded(
-                                              flex: 1,
-                                              child: Text('Rem: ${item.remainingQuantity}'),
-                                            ),
-                                          ],
-                                        ),
-                                      )).toList(),
-                                      SizedBox(height: 16),
-                                      ElevatedButton(
-                                        onPressed: () {
-                                          Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                              builder: (context) => EditLoadOrder(
-                                                orderNumber: order.orderNumber,
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                        child: Text('Edit Order'),
+                                      Text(
+                                        'Items:',
+                                        style: Theme.of(context).textTheme.titleMedium,
                                       ),
+                                      ...order.items.map((item) => ListTile(
+                                            title: Text(item.productName),
+                                            subtitle: Text(
+                                              'Ordered: ${item.orderedQuantity}\n'
+                                              'Delivered: ${item.deliveredQuantity}',
+                                            ),
+                                            trailing: Text('₹${item.totalPrice}'),
+                                          )),
                                     ],
                                   ),
                                 ),

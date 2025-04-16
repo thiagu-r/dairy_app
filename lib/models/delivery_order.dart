@@ -1,7 +1,9 @@
 import 'package:hive/hive.dart';
 
+part 'delivery_order.g.dart';  // This will be generated
+
 @HiveType(typeId: 4)
-class DeliveryOrder {
+class DeliveryOrder extends HiveObject {
   @HiveField(0)
   final int id;
 
@@ -27,10 +29,10 @@ class DeliveryOrder {
   String? deliveryTime;
 
   @HiveField(8)
-  final String totalPrice;
+  String totalPrice;
 
   @HiveField(9)
-  final String openingBalance;
+  String openingBalance;
 
   @HiveField(10)
   String amountCollected;
@@ -70,30 +72,30 @@ class DeliveryOrder {
     required this.status,
     this.notes,
     required this.items,
-    required this.syncStatus,
+    this.syncStatus = 'synced',
   });
 
   factory DeliveryOrder.fromJson(Map<String, dynamic> json) {
     return DeliveryOrder(
-      id: json['id'],
-      orderNumber: json['order_number'],
-      seller: json['seller'],
-      sellerName: json['seller_name'],
-      route: json['route'],
-      routeName: json['route_name'],
-      deliveryDate: json['delivery_date'],
-      deliveryTime: json['delivery_time'],
-      totalPrice: json['total_price'],
-      openingBalance: json['opening_balance'],
-      amountCollected: json['amount_collected'],
-      balanceAmount: json['balance_amount'],
-      paymentMethod: json['payment_method'],
-      status: json['status'],
-      notes: json['notes'],
-      items: (json['items'] as List)
-          .map((item) => DeliveryOrderItem.fromJson(item))
+      id: json['id'] as int,
+      orderNumber: json['order_number'] as String,
+      seller: json['seller'] as int,
+      sellerName: json['seller_name'] as String,
+      route: json['route'] as int,
+      routeName: json['route_name'] as String,
+      deliveryDate: json['delivery_date'] as String,
+      deliveryTime: json['delivery_time'] as String?,
+      totalPrice: json['total_price'] as String,
+      openingBalance: json['opening_balance'] as String,
+      amountCollected: json['amount_collected'] as String,
+      balanceAmount: json['balance_amount'] as String,
+      paymentMethod: json['payment_method'] as String,
+      status: json['status'] as String,
+      notes: json['notes'] as String?,
+      items: (json['items'] as List<dynamic>)
+          .map((item) => DeliveryOrderItem.fromJson(item as Map<String, dynamic>))
           .toList(),
-      syncStatus: json['sync_status'] ?? 'pending',
+      syncStatus: 'synced',
     );
   }
 
@@ -115,7 +117,6 @@ class DeliveryOrder {
       'status': status,
       'notes': notes,
       'items': items.map((item) => item.toJson()).toList(),
-      'sync_status': syncStatus,
     };
   }
 }
@@ -135,7 +136,7 @@ class DeliveryOrderItem {
   final String orderedQuantity;
 
   @HiveField(4)
-  String extraQuantity;
+  final String extraQuantity;
 
   @HiveField(5)
   String deliveredQuantity;
@@ -159,14 +160,14 @@ class DeliveryOrderItem {
 
   factory DeliveryOrderItem.fromJson(Map<String, dynamic> json) {
     return DeliveryOrderItem(
-      id: json['id'],
-      product: json['product'],
-      productName: json['product_name'],
-      orderedQuantity: json['ordered_quantity'],
-      extraQuantity: json['extra_quantity'],
-      deliveredQuantity: json['delivered_quantity'],
-      unitPrice: json['unit_price'],
-      totalPrice: json['total_price'],
+      id: json['id'] as int,
+      product: json['product'] as int,
+      productName: json['product_name'] as String,
+      orderedQuantity: json['ordered_quantity'] as String,
+      extraQuantity: json['extra_quantity'] as String,
+      deliveredQuantity: json['delivered_quantity'] as String,
+      unitPrice: json['unit_price'] as String,
+      totalPrice: json['total_price'] as String,
     );
   }
 
@@ -184,117 +185,3 @@ class DeliveryOrderItem {
   }
 }
 
-class DeliveryOrderAdapter extends TypeAdapter<DeliveryOrder> {
-  @override
-  final int typeId = 4;
-
-  @override
-  DeliveryOrder read(BinaryReader reader) {
-    final numOfFields = reader.readByte();
-    final fields = <int, dynamic>{
-      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
-    };
-    return DeliveryOrder(
-      id: fields[0] as int,
-      orderNumber: fields[1] as String,
-      seller: fields[2] as int,
-      sellerName: fields[3] as String,
-      route: fields[4] as int,
-      routeName: fields[5] as String,
-      deliveryDate: fields[6] as String,
-      deliveryTime: fields[7] as String?,
-      totalPrice: fields[8] as String,
-      openingBalance: fields[9] as String,
-      amountCollected: fields[10] as String,
-      balanceAmount: fields[11] as String,
-      paymentMethod: fields[12] as String,
-      status: fields[13] as String,
-      notes: fields[14] as String?,
-      items: (fields[15] as List).cast<DeliveryOrderItem>(),
-      syncStatus: fields[16] as String,
-    );
-  }
-
-  @override
-  void write(BinaryWriter writer, DeliveryOrder obj) {
-    writer.writeByte(17);
-    writer.writeByte(0);
-    writer.write(obj.id);
-    writer.writeByte(1);
-    writer.write(obj.orderNumber);
-    writer.writeByte(2);
-    writer.write(obj.seller);
-    writer.writeByte(3);
-    writer.write(obj.sellerName);
-    writer.writeByte(4);
-    writer.write(obj.route);
-    writer.writeByte(5);
-    writer.write(obj.routeName);
-    writer.writeByte(6);
-    writer.write(obj.deliveryDate);
-    writer.writeByte(7);
-    writer.write(obj.deliveryTime);
-    writer.writeByte(8);
-    writer.write(obj.totalPrice);
-    writer.writeByte(9);
-    writer.write(obj.openingBalance);
-    writer.writeByte(10);
-    writer.write(obj.amountCollected);
-    writer.writeByte(11);
-    writer.write(obj.balanceAmount);
-    writer.writeByte(12);
-    writer.write(obj.paymentMethod);
-    writer.writeByte(13);
-    writer.write(obj.status);
-    writer.writeByte(14);
-    writer.write(obj.notes);
-    writer.writeByte(15);
-    writer.write(obj.items);
-    writer.writeByte(16);
-    writer.write(obj.syncStatus);
-  }
-}
-
-class DeliveryOrderItemAdapter extends TypeAdapter<DeliveryOrderItem> {
-  @override
-  final int typeId = 5;
-
-  @override
-  DeliveryOrderItem read(BinaryReader reader) {
-    final numOfFields = reader.readByte();
-    final fields = <int, dynamic>{
-      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
-    };
-    return DeliveryOrderItem(
-      id: fields[0] as int,
-      product: fields[1] as int,
-      productName: fields[2] as String,
-      orderedQuantity: fields[3] as String,
-      extraQuantity: fields[4] as String,
-      deliveredQuantity: fields[5] as String,
-      unitPrice: fields[6] as String,
-      totalPrice: fields[7] as String,
-    );
-  }
-
-  @override
-  void write(BinaryWriter writer, DeliveryOrderItem obj) {
-    writer.writeByte(8);
-    writer.writeByte(0);
-    writer.write(obj.id);
-    writer.writeByte(1);
-    writer.write(obj.product);
-    writer.writeByte(2);
-    writer.write(obj.productName);
-    writer.writeByte(3);
-    writer.write(obj.orderedQuantity);
-    writer.writeByte(4);
-    writer.write(obj.extraQuantity);
-    writer.writeByte(5);
-    writer.write(obj.deliveredQuantity);
-    writer.writeByte(6);
-    writer.write(obj.unitPrice);
-    writer.writeByte(7);
-    writer.write(obj.totalPrice);
-  }
-}

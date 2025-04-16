@@ -5,6 +5,8 @@ import 'package:http/http.dart' as http;
 import 'package:hive/hive.dart';
 import '../config/api_config.dart';
 import '../models/route_model.dart';
+import '../models/delivery_order.dart';
+import '../services/offline_storage_service.dart';
 
 class ApiService {
   final String baseUrl = ApiConfig.baseUrl;
@@ -121,6 +123,37 @@ class ApiService {
     } catch (e) {
       print('Error creating loading order: $e');
       throw Exception('Failed to create loading order: $e');
+    }
+  }
+
+  Future<List<DeliveryOrder>> getDeliveryOrders(String deliveryDate, int routeId) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.get(
+        Uri.parse('${baseUrl}/orders/delivery/?delivery_date=$deliveryDate&route=$routeId'),
+        headers: headers,
+      );
+      
+      print('Delivery Orders API Response - Status Code: ${response.statusCode}');
+      print('Delivery Orders API Response - Body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        final orders = data.map((order) => DeliveryOrder.fromJson(order)).toList();
+        
+        // Store orders in offline storage
+        final storageService = OfflineStorageService();
+        await storageService.storeDeliveryOrders(orders);
+        
+        return orders;
+      } else if (response.statusCode == 401) {
+        throw Exception('Authentication failed. Please log in again.');
+      } else {
+        throw Exception('Server returned ${response.statusCode}: ${response.body}');
+      }
+    } catch (e) {
+      print('Error fetching delivery orders: $e');
+      throw Exception('Failed to fetch delivery orders: $e');
     }
   }
 }

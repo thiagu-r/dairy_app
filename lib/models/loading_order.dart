@@ -23,6 +23,12 @@ class LoadingOrder {
   @HiveField(6)
   final List<LoadingOrderItem> items;
 
+  @HiveField(7)
+  final int? cratesLoaded;  // Made nullable
+
+  @HiveField(8)
+  final String? loadingTime;  // Made nullable
+
   LoadingOrder({
     required this.id,
     required this.orderNumber,
@@ -31,18 +37,22 @@ class LoadingOrder {
     required this.loadingDate,
     required this.status,
     required this.items,
+    this.cratesLoaded,  // Made optional
+    this.loadingTime,   // Made optional
   });
 
   factory LoadingOrder.fromJson(Map<String, dynamic> json) {
     return LoadingOrder(
-      id: json['id'],
-      orderNumber: json['order_number'],
-      route: json['route'],
-      routeName: json['route_name'],
-      loadingDate: json['loading_date'],
-      status: json['status'],
+      id: json['id'] as int,
+      orderNumber: json['order_number'] as String,
+      route: json['route'] as int,
+      routeName: json['route_name'] as String,
+      loadingDate: json['loading_date'] as String,
+      status: json['status'] as String,
+      cratesLoaded: json['crates_loaded'] as int?,  // Handle nullable
+      loadingTime: json['loading_time'] as String?,  // Handle nullable
       items: (json['items'] as List)
-          .map((item) => LoadingOrderItem.fromJson(item))
+          .map((item) => LoadingOrderItem.fromJson(item))  // Use fromJson constructor
           .toList(),
     );
   }
@@ -55,6 +65,8 @@ class LoadingOrder {
       'route_name': routeName,
       'loading_date': loadingDate,
       'status': status,
+      'crates_loaded': cratesLoaded,
+      'loading_time': loadingTime,
       'items': items.map((item) => item.toJson()).toList(),
     };
   }
@@ -83,6 +95,12 @@ class LoadingOrderItem {
   @HiveField(6)
   final String totalQuantity;
 
+  @HiveField(7)
+  final String deliveredQuantity;
+
+  @HiveField(8)
+  final String returnQuantity;
+
   LoadingOrderItem({
     required this.id,
     required this.product,
@@ -91,17 +109,21 @@ class LoadingOrderItem {
     required this.loadedQuantity,
     required this.remainingQuantity,
     required this.totalQuantity,
+    required this.deliveredQuantity,
+    required this.returnQuantity,
   });
 
   factory LoadingOrderItem.fromJson(Map<String, dynamic> json) {
     return LoadingOrderItem(
-      id: json['id'],
-      product: json['product'],
-      productName: json['product_name'],
-      purchaseOrderQuantity: json['purchase_order_quantity'],
-      loadedQuantity: json['loaded_quantity'],
-      remainingQuantity: json['remaining_quantity'],
-      totalQuantity: json['total_quantity'],
+      id: json['id'] as int,
+      product: json['product'] as int,
+      productName: json['product_name'] as String,
+      purchaseOrderQuantity: (json['purchase_order_quantity'] ?? '0.000').toString(),
+      loadedQuantity: (json['loaded_quantity'] ?? '0.000').toString(),
+      remainingQuantity: (json['remaining_quantity'] ?? '0.000').toString(),
+      totalQuantity: (json['total_quantity'] ?? '0.000').toString(),
+      deliveredQuantity: (json['delivered_quantity'] ?? '0.000').toString(),
+      returnQuantity: (json['return_quantity'] ?? '0.000').toString(),
     );
   }
 
@@ -114,6 +136,8 @@ class LoadingOrderItem {
       'loaded_quantity': loadedQuantity,
       'remaining_quantity': remainingQuantity,
       'total_quantity': totalQuantity,
+      'delivered_quantity': deliveredQuantity,
+      'return_quantity': returnQuantity,
     };
   }
 }
@@ -136,12 +160,14 @@ class LoadingOrderAdapter extends TypeAdapter<LoadingOrder> {
       loadingDate: fields[4] as String,
       status: fields[5] as String,
       items: (fields[6] as List).cast<LoadingOrderItem>(),
+      cratesLoaded: fields[7] as int?,  // Handle nullable
+      loadingTime: fields[8] as String?,  // Handle nullable
     );
   }
 
   @override
   void write(BinaryWriter writer, LoadingOrder obj) {
-    writer.writeByte(7);
+    writer.writeByte(9);
     writer.writeByte(0);
     writer.write(obj.id);
     writer.writeByte(1);
@@ -156,6 +182,10 @@ class LoadingOrderAdapter extends TypeAdapter<LoadingOrder> {
     writer.write(obj.status);
     writer.writeByte(6);
     writer.write(obj.items);
+    writer.writeByte(7);
+    writer.write(obj.cratesLoaded);
+    writer.writeByte(8);
+    writer.write(obj.loadingTime);
   }
 }
 
@@ -177,12 +207,14 @@ class LoadingOrderItemAdapter extends TypeAdapter<LoadingOrderItem> {
       loadedQuantity: fields[4] as String,
       remainingQuantity: fields[5] as String,
       totalQuantity: fields[6] as String,
+      deliveredQuantity: fields[7] as String,
+      returnQuantity: fields[8] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, LoadingOrderItem obj) {
-    writer.writeByte(7);
+    writer.writeByte(9);
     writer.writeByte(0);
     writer.write(obj.id);
     writer.writeByte(1);
@@ -197,5 +229,9 @@ class LoadingOrderItemAdapter extends TypeAdapter<LoadingOrderItem> {
     writer.write(obj.remainingQuantity);
     writer.writeByte(6);
     writer.write(obj.totalQuantity);
+    writer.writeByte(7);
+    writer.write(obj.deliveredQuantity);
+    writer.writeByte(8);
+    writer.write(obj.returnQuantity);
   }
 }

@@ -6,6 +6,8 @@ import '../../services/api_service.dart';
 import '../../models/route_model.dart';
 import '../../widgets/loading_indicator.dart';
 import '../../widgets/error_message.dart';
+import '../../models/loading_order.dart';
+import '../../services/offline_storage_service.dart';
 
 class LoadOrdersScreen extends StatefulWidget {
   @override
@@ -14,6 +16,7 @@ class LoadOrdersScreen extends StatefulWidget {
 
 class _LoadOrdersScreenState extends State<LoadOrdersScreen> {
   final ApiService _apiService = ApiService();
+  final OfflineStorageService _storageService = OfflineStorageService();
   final _formKey = GlobalKey<FormState>();
   final _notesController = TextEditingController();
   final _loadingTimeController = TextEditingController();
@@ -115,12 +118,12 @@ class _LoadOrdersScreenState extends State<LoadOrdersScreen> {
     if (_formKey.currentState?.validate() != true || _purchaseOrderId == null) {
       return;
     }
-    
+
     setState(() {
       _isLoading = true;
       _errorMessage = '';
     });
-    
+
     final payload = {
       "route": _selectedRoute!.id,
       "loading_date": DateFormat('yyyy-MM-dd').format(_selectedDate),
@@ -129,27 +132,37 @@ class _LoadOrdersScreenState extends State<LoadOrdersScreen> {
       "notes": _notesController.text,
       "crates": int.tryParse(_cratesController.text) ?? 0,
     };
-    
+
     try {
       final response = await _apiService.createLoadingOrder(payload);
       
-      setState(() {
-        _isLoading = false;
-      });
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(response['message'] ?? 'Loading order created successfully'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      
-      // Clear form
-      _notesController.clear();
-      _cratesController.clear();
-      _purchaseOrderData = null;
-      _purchaseOrderId = null;
-      
+      if (response['success'] == true && response['loading_order'] != null) {
+        // Create LoadingOrder object from response
+        final loadingOrder = LoadingOrder.fromJson(response['loading_order']);
+        
+        // Store the order in offline storage
+        await OfflineStorageService().storeLoadingOrder(loadingOrder);
+
+        setState(() {
+          _isLoading = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(response['message'] ?? 'Loading order created successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        // Clear form
+        _notesController.clear();
+        _cratesController.clear();
+        _purchaseOrderData = null;
+        _purchaseOrderId = null;
+
+        // Navigate back to the list
+        Navigator.pop(context);
+      }
     } catch (e) {
       setState(() {
         _isLoading = false;

@@ -180,6 +180,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/network_provider.dart';
 import 'load_orders/load_orders_dashboard.dart';
+import 'delivery_orders/delivery_orders_dashboard.dart';
 import 'login_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -304,7 +305,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   'Delivery Orders',
                   Icons.local_shipping,
                   Colors.green,
-                  () => _showComingSoonDialog(context),
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => DeliveryOrdersDashboard(),
+                    ),
+                  ),
                 ),
                 _buildMenuCard(
                   context,

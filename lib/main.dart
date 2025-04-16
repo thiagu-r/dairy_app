@@ -26,7 +26,11 @@ void main() async {
   // Initialize Hive for local storage
   await Hive.initFlutter();
   
-  // Register adapters for custom objects
+  // Register Hive Adapters
+  if (!Hive.isAdapterRegistered(0)) {
+    Hive.registerAdapter(UserAdapter());
+  }
+  // Removed RouteAdapter registration since it's not defined
   if (!Hive.isAdapterRegistered(2)) {
     Hive.registerAdapter(LoadingOrderAdapter());
   }
@@ -41,13 +45,15 @@ void main() async {
   }
   
   // Open Hive boxes
-  await Hive.openBox('authBox');
-  await Hive.openBox('ordersBox');
-  await Hive.openBox('productsBox');
-  await Hive.openBox('customersBox');
-  await Hive.openBox('syncBox');
-  await Hive.openBox('loadingOrders');
-  await Hive.openBox('deliveryOrders');
+  await Future.wait([
+    Hive.openBox('authBox'),
+    Hive.openBox('ordersBox'),
+    Hive.openBox('productsBox'),
+    Hive.openBox('customersBox'),
+    Hive.openBox('syncBox'),
+    Hive.openBox<LoadingOrder>('loadingOrders'),
+    Hive.openBox<DeliveryOrder>('deliveryOrders'),
+  ]);
   
   runApp(MyApp());
 }
