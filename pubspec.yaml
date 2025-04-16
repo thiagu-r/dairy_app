@@ -1,0 +1,57 @@
+name: dairy_delivery
+description: A dairy product delivery management application
+
+# The following line prevents the package from being accidentally published to
+# pub.dev using `flutter pub publish`
+publish_to: 'none'
+
+# Version information
+version: 1.0.0+1
+
+environment:
+  sdk: ">=2.17.0 <3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # State management
+  provider: ^6.0.5
+  
+  # Local storage
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  
+  # Network and connectivity
+  http: ^0.13.5
+  connectivity_plus: ^5.0.0 
+  
+  # UI components
+  cupertino_icons: ^1.0.5
+  intl: ^0.18.0
+  cached_network_image: ^3.2.3
+  flutter_svg: ^2.0.5
+  
+  # Utilities
+  uuid: ^3.0.7
+  path_provider: ^2.0.15
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  
+  # Build tools
+  build_runner: ^2.3.3
+  hive_generator: ^2.0.0
+  
+  # Linting
+  flutter_lints: ^2.0.1
+
+# Flutter configuration
+flutter:
+  uses-material-design: true
+  
+  # Assets
+  assets:
+    - assets/images/
+    - assets/icons/
