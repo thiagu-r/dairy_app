@@ -26,15 +26,14 @@ void main() async {
   // Initialize Hive for local storage
   await Hive.initFlutter();
   
-  // Register Hive Adapters
+  // Register Hive Adapters with consistent typeIds
   if (!Hive.isAdapterRegistered(0)) {
     Hive.registerAdapter(UserAdapter());
   }
-  // Removed RouteAdapter registration since it's not defined
-  if (!Hive.isAdapterRegistered(2)) {
+  if (!Hive.isAdapterRegistered(1)) {
     Hive.registerAdapter(LoadingOrderAdapter());
   }
-  if (!Hive.isAdapterRegistered(3)) {
+  if (!Hive.isAdapterRegistered(2)) {
     Hive.registerAdapter(LoadingOrderItemAdapter());
   }
   if (!Hive.isAdapterRegistered(4)) {
@@ -43,6 +42,10 @@ void main() async {
   if (!Hive.isAdapterRegistered(5)) {
     Hive.registerAdapter(DeliveryOrderItemAdapter());
   }
+  
+  // Clear existing boxes to avoid type conflicts
+  await Hive.deleteBoxFromDisk('loadingOrders');
+  await Hive.deleteBoxFromDisk('deliveryOrders');
   
   // Open Hive boxes
   await Future.wait([

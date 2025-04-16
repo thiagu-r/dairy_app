@@ -1,61 +1,62 @@
-import 'package:hive/hive.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import '../models/loading_order.dart';
 import '../models/delivery_order.dart';
 
 class OfflineStorageService {
-  static const String loadingOrdersBox = 'loadingOrders';
-  static const String deliveryOrdersBox = 'deliveryOrders';
+  static const String LOADING_ORDERS_BOX = 'loading_orders';
+  static const String DELIVERY_ORDERS_BOX = 'delivery_orders';
 
-  // Store loading order
   Future<void> storeLoadingOrder(LoadingOrder order) async {
-    final box = Hive.box<LoadingOrder>(loadingOrdersBox);  // Use existing box instead of opening new one
-    await box.put(order.orderNumber, order);
+    final box = await Hive.openBox<LoadingOrder>(LOADING_ORDERS_BOX);
+    await box.put(order.id, order);
   }
 
-  // Get loading order by date
   Future<List<LoadingOrder>> getLoadingOrdersByDate(String date) async {
-    final box = Hive.box<LoadingOrder>(loadingOrdersBox);  // Use existing box instead of opening new one
-    return box.values.where((order) => order.loadingDate == date).toList();
-  }
-
-  // Store delivery orders
-  Future<void> storeDeliveryOrders(List<DeliveryOrder> orders) async {
-    final box = Hive.box<DeliveryOrder>(deliveryOrdersBox);  // Use existing box instead of opening new one
-    for (var order in orders) {
-      await box.put(order.orderNumber, order);
-    }
-  }
-
-  // Get delivery orders by date and route
-  Future<List<DeliveryOrder>> getDeliveryOrdersByDateAndRoute(String date, int routeId) async {
-    final box = Hive.box<DeliveryOrder>(deliveryOrdersBox);
+    final box = await Hive.openBox<LoadingOrder>(LOADING_ORDERS_BOX);
     return box.values
-        .where((order) => order.deliveryDate == date && order.route == routeId)
+        .where((order) => order.loadingDate == date)
         .toList();
   }
 
-  // Get single delivery order by order number
-  Future<DeliveryOrder?> getDeliveryOrder(String orderNumber) async {
-    final box = Hive.box<DeliveryOrder>(deliveryOrdersBox);
-    return box.get(orderNumber);
+  Future<LoadingOrder?> getLoadingOrderByDateAndRoute(String date, int route) async {
+    final box = await Hive.openBox<LoadingOrder>(LOADING_ORDERS_BOX);
+    try {
+      return box.values.firstWhere(
+        (order) => order.loadingDate == date && order.route == route,
+      );
+    } catch (e) {
+      return null;
+    }
   }
 
-  // Update single delivery order
-  Future<void> updateDeliveryOrder(DeliveryOrder order) async {
-    final box = Hive.box<DeliveryOrder>(deliveryOrdersBox);
-    order.syncStatus = 'pending';  // Mark as needing sync
-    await box.put(order.orderNumber, order);
+  Future<void> storeDeliveryOrders(List<DeliveryOrder> orders) async {
+    final box = await Hive.openBox<DeliveryOrder>(DELIVERY_ORDERS_BOX);
+    for (var order in orders) {
+      await box.put(order.id, order);
+    }
   }
 
-  // Get all pending sync delivery orders
-  Future<List<DeliveryOrder>> getPendingSyncDeliveryOrders() async {
-    final box = Hive.box<DeliveryOrder>(deliveryOrdersBox);
-    return box.values.where((order) => order.syncStatus == 'pending').toList();
-  }
-
-  // Get delivery orders by date
   Future<List<DeliveryOrder>> getDeliveryOrdersByDate(String date) async {
-    final box = Hive.box<DeliveryOrder>(deliveryOrdersBox);
-    return box.values.where((order) => order.deliveryDate == date).toList();
+    final box = await Hive.openBox<DeliveryOrder>(DELIVERY_ORDERS_BOX);
+    return box.values
+        .where((order) => order.deliveryDate == date)
+        .toList();
+  }
+
+  Future<List<DeliveryOrder>> getDeliveryOrdersByDateAndRoute(
+    String date,
+    int route,
+  ) async {
+    final box = await Hive.openBox<DeliveryOrder>(DELIVERY_ORDERS_BOX);
+    return box.values
+        .where((order) => 
+            order.deliveryDate == date && 
+            order.route == route)
+        .toList();
+  }
+
+  Future<void> updateDeliveryOrder(DeliveryOrder order) async {
+    final box = await Hive.openBox<DeliveryOrder>(DELIVERY_ORDERS_BOX);
+    await box.put(order.id, order);
   }
 }

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../services/offline_storage_service.dart';
 import '../../models/delivery_order.dart';
+import '../../models/loading_order.dart';
+import 'update_delivery_order.dart';
 
 class ListDeliveryOrders extends StatefulWidget {
   @override
@@ -76,80 +78,34 @@ class _ListDeliveryOrdersState extends State<ListDeliveryOrders> {
     }
   }
 
-  void _showOrderDetails(DeliveryOrder order) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.9,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        builder: (_, controller) => Container(
-          padding: EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Order #${order.orderNumber}',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-              Divider(),
-              Text('Route: ${order.routeName}'),
-              Text('Status: ${order.status}'),
-              Text('Total Price: ${order.totalPrice}'),
-              Text('Payment Method: ${order.paymentMethod}'),
-              Text('Sync Status: ${order.syncStatus}'),
-              if (order.notes?.isNotEmpty == true)
-                Text('Notes: ${order.notes}'),
-              SizedBox(height: 16),
-              Text(
-                'Items:',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              Expanded(
-                child: ListView.builder(
-                  controller: controller,
-                  itemCount: order.items.length,
-                  itemBuilder: (context, index) {
-                    final item = order.items[index];
-                    return Card(
-                      child: ListTile(
-                        title: Text(item.productName),
-                        subtitle: Text(
-                          'Ordered: ${item.orderedQuantity}\n'
-                          'Delivered: ${item.deliveredQuantity}',
-                        ),
-                        trailing: Text('₹${item.totalPrice}'),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () {
-                  // TODO: Implement update delivery order
-                  // Navigate to update screen or show update dialog
-                },
-                child: Text('Update Delivery'),
-                style: ElevatedButton.styleFrom(
-                  minimumSize: Size(double.infinity, 48),
-                ),
-              ),
-            ],
-          ),
+  void _showOrderDetails(DeliveryOrder order) async {
+    // Get the loading order for this delivery
+    final loadingOrder = await _storageService.getLoadingOrderByDateAndRoute(
+      order.deliveryDate,
+      order.route,
+    );
+
+    if (loadingOrder == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Loading order not found')),
+      );
+      return;
+    }
+
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => UpdateDeliveryOrder(
+          deliveryOrder: order,
+          loadingOrder: loadingOrder,
         ),
       ),
     );
+
+    if (result == true) {
+      // Refresh the list if order was updated
+      _loadOrders();
+    }
   }
 
   @override
