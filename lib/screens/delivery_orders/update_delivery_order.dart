@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../../models/delivery_order.dart';
 import '../../models/loading_order.dart';
 import '../../services/offline_storage_service.dart';
@@ -177,7 +178,14 @@ class _UpdateDeliveryOrderState extends State<UpdateDeliveryOrder> {
 
   Future<void> _saveDeliveryOrder() async {
     try {
+      // Only set delivery time if it hasn't been set before
+      if (widget.deliveryOrder.deliveryTime == null || widget.deliveryOrder.deliveryTime!.isEmpty) {
+        final now = DateTime.now();
+        widget.deliveryOrder.deliveryTime = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
+      }
+      
       widget.deliveryOrder.items = _items;
+      widget.deliveryOrder.updateTotalPrice(); // This will also update balance amount
       await _storageService.updateDeliveryOrder(widget.deliveryOrder);
       Navigator.pop(context, true);
     } catch (e) {
@@ -204,44 +212,137 @@ class _UpdateDeliveryOrderState extends State<UpdateDeliveryOrder> {
           : Column(
               children: [
                 Expanded(
-                  child: ListView.builder(
-                    itemCount: _items.length,
-                    itemBuilder: (context, index) {
-                      final item = _items[index];
-                      return Card(
-                        margin: EdgeInsets.all(8),
-                        child: Padding(
-                          padding: EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                item.productName,
-                                style: Theme.of(context).textTheme.titleMedium,
-                              ),
-                              SizedBox(height: 8),
-                              Row(
+                  child: ListView(
+                    padding: EdgeInsets.all(16),
+                    children: [
+                      // Order Items List
+                      Text(
+                        'Order Items',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      SizedBox(height: 16),
+                      ListView.builder(
+                        shrinkWrap: true,
+                        physics: NeverScrollableScrollPhysics(),
+                        itemCount: _items.length,
+                        itemBuilder: (context, index) {
+                          final item = _items[index];
+                          return Card(
+                            margin: EdgeInsets.only(bottom: 8),
+                            child: Padding(
+                              padding: EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Expanded(
-                                    child: TextFormField(
-                                      initialValue: item.deliveredQuantity,
-                                      decoration: InputDecoration(
-                                        labelText: 'Delivered Quantity',
-                                        helperText: 'Ordered: ${item.orderedQuantity}',
-                                      ),
-                                      keyboardType: TextInputType.number,
-                                      onChanged: (value) => _updateDeliveredQuantity(item, value),
-                                    ),
+                                  Text(
+                                    item.productName,
+                                    style: Theme.of(context).textTheme.titleMedium,
                                   ),
-                                  SizedBox(width: 16),
-                                  Text('Available: ${_availableExtras[item.product]?.toStringAsFixed(3)}'),
+                                  SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: TextFormField(
+                                          initialValue: item.deliveredQuantity,
+                                          decoration: InputDecoration(
+                                            labelText: 'Delivered Quantity',
+                                            helperText: 'Ordered: ${item.orderedQuantity}',
+                                          ),
+                                          keyboardType: TextInputType.number,
+                                          onChanged: (value) => _updateDeliveredQuantity(item, value),
+                                        ),
+                                      ),
+                                      SizedBox(width: 16),
+                                      Text('Available: ${_availableExtras[item.product]?.toStringAsFixed(3)}'),
+                                    ],
+                                  ),
                                 ],
                               ),
-                            ],
-                          ),
+                            ),
+                          );
+                        },
+                      ),
+                      SizedBox(height: 24),
+                      
+                      // Payment Details Section
+                      Text(
+                        'Payment Details',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      SizedBox(height: 16),
+                      
+                      // Total Price (Read-only)
+                      TextFormField(
+                        initialValue: widget.deliveryOrder.totalPrice,
+                        decoration: InputDecoration(
+                          labelText: 'Total Price',
+                          border: OutlineInputBorder(),
                         ),
-                      );
-                    },
+                        readOnly: true,
+                        enabled: false,
+                      ),
+                      SizedBox(height: 16),
+                      
+                      // Opening Balance (Read-only)
+                      TextFormField(
+                        initialValue: widget.deliveryOrder.openingBalance,
+                        decoration: InputDecoration(
+                          labelText: 'Opening Balance',
+                          border: OutlineInputBorder(),
+                        ),
+                        readOnly: true,
+                        enabled: false,
+                      ),
+                      SizedBox(height: 16),
+                      
+                      // Amount Collected
+                      TextFormField(
+                        initialValue: widget.deliveryOrder.amountCollected,
+                        decoration: InputDecoration(
+                          labelText: 'Amount Collected',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.number,
+                        onChanged: (value) {
+                          setState(() {
+                            widget.deliveryOrder.amountCollected = value;
+                            widget.deliveryOrder.updateBalanceAmount();
+                          });
+                        },
+                      ),
+                      SizedBox(height: 16),
+                      
+                      // Balance Amount (Read-only)
+                      TextFormField(
+                        initialValue: widget.deliveryOrder.balanceAmount,
+                        decoration: InputDecoration(
+                          labelText: 'Balance Amount',
+                          border: OutlineInputBorder(),
+                        ),
+                        readOnly: true,
+                        enabled: false,
+                      ),
+                      SizedBox(height: 16),
+                      
+                      // Payment Method
+                      DropdownButtonFormField<String>(
+                        value: widget.deliveryOrder.paymentMethod,
+                        decoration: InputDecoration(
+                          labelText: 'Payment Method',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: [
+                          DropdownMenuItem(value: 'cash', child: Text('Cash')),
+                          DropdownMenuItem(value: 'credit', child: Text('Credit')),
+                          DropdownMenuItem(value: 'bank', child: Text('Bank Transfer')),
+                        ],
+                        onChanged: (value) {
+                          setState(() {
+                            widget.deliveryOrder.paymentMethod = value ?? 'cash';
+                          });
+                        },
+                      ),
+                    ],
                   ),
                 ),
                 Padding(
