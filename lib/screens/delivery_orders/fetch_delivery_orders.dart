@@ -44,17 +44,54 @@ class _FetchDeliveryOrdersState extends State<FetchDeliveryOrders> {
   Future<void> _fetchDeliveryOrders(LoadingOrder loadingOrder) async {
     setState(() => _isLoading = true);
     try {
+      // Check if orders already exist
+      final hasExisting = await _storageService.hasDeliveryOrdersForRouteAndDate(
+        loadingOrder.route,
+        loadingOrder.loadingDate,
+      );
+
+      if (hasExisting) {
+        final shouldRefetch = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text('Orders Already Exist'),
+            content: Text(
+              'Delivery orders for this route and date already exist. Do you want to fetch and replace them?'
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: Text('Replace'),
+              ),
+            ],
+          ),
+        ) ?? false;
+
+        if (!shouldRefetch) {
+          setState(() => _isLoading = false);
+          return;
+        }
+      }
+
       final deliveryOrders = await _apiService.getDeliveryOrders(
         loadingOrder.loadingDate,
         loadingOrder.route,
       );
       
-      // Store orders in offline storage
+      // Store orders in offline storage (this will replace existing orders)
       await _storageService.storeDeliveryOrders(deliveryOrders);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Successfully fetched and stored delivery orders'),
+          content: Text(
+            hasExisting 
+              ? 'Successfully updated delivery orders'
+              : 'Successfully fetched and stored delivery orders'
+          ),
           backgroundColor: Colors.green,
         ),
       );

@@ -13,9 +13,8 @@ class ApiService {
   
   // Get auth token from storage
   Future<String?> _getToken() async {
-    final authBox = Hive.box('authBox');
-    final accessToken = authBox.get('accessToken');  // Changed to directly get accessToken
-    return accessToken;
+    final authBox = await Hive.openBox('authBox');
+    return authBox.get('accessToken');
   }
   
   // Create headers with auth token
@@ -24,7 +23,11 @@ class ApiService {
     if (token == null) {
       throw Exception('No authentication token found');
     }
-    return ApiConfig.getHeaders(token: token);
+    
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    };
   }
   
   // Login
@@ -129,27 +132,32 @@ class ApiService {
   Future<List<DeliveryOrder>> getDeliveryOrders(String deliveryDate, int routeId) async {
     try {
       final headers = await _getHeaders();
-      final response = await http.get(
-        Uri.parse('${baseUrl}/orders/delivery/?delivery_date=$deliveryDate&route=$routeId'),
-        headers: headers,
+      
+      final uri = Uri.parse('$baseUrl/orders/delivery').replace(
+        queryParameters: {
+          'delivery_date': deliveryDate,
+          'route': routeId.toString(),
+        },
       );
-      
-      print('Delivery Orders API Response - Status Code: ${response.statusCode}');
-      print('Delivery Orders API Response - Body: ${response.body}');
-      
+
+      final response = await http.get(uri, headers: headers);
+
       if (response.statusCode == 200) {
         final List<dynamic> data = json.decode(response.body);
-        final orders = data.map((order) => DeliveryOrder.fromJson(order)).toList();
-        
-        // Store orders in offline storage
-        final storageService = OfflineStorageService();
-        await storageService.storeDeliveryOrders(orders);
+        final orders = data.map((json) {
+          final order = DeliveryOrder.fromJson(json);
+          // These fields should now be modifiable
+          order.route = routeId;
+          order.deliveryDate = deliveryDate;
+          return order;
+        }).toList();
         
         return orders;
-      } else if (response.statusCode == 401) {
-        throw Exception('Authentication failed. Please log in again.');
       } else {
-        throw Exception('Server returned ${response.statusCode}: ${response.body}');
+        final errorMessage = response.body.isNotEmpty 
+            ? json.decode(response.body)['message'] ?? 'Failed to fetch delivery orders'
+            : 'Failed to fetch delivery orders';
+        throw Exception(errorMessage);
       }
     } catch (e) {
       print('Error fetching delivery orders: $e');

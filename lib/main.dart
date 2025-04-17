@@ -9,6 +9,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'models/user.dart';
 import 'models/loading_order.dart';
 import 'models/delivery_order.dart';
+import 'models/public_sale.dart';
 import 'providers/auth_provider.dart';
 import 'providers/network_provider.dart';
 import 'screens/splash_screen.dart';
@@ -42,10 +43,17 @@ void main() async {
   if (!Hive.isAdapterRegistered(5)) {
     Hive.registerAdapter(DeliveryOrderItemAdapter());
   }
+  if (!Hive.isAdapterRegistered(6)) {
+    Hive.registerAdapter(PublicSaleAdapter());
+  }
+  if (!Hive.isAdapterRegistered(7)) {
+    Hive.registerAdapter(PublicSaleItemAdapter());
+  }
   
   // Clear existing boxes to avoid type conflicts
   await Hive.deleteBoxFromDisk('loadingOrders');
   await Hive.deleteBoxFromDisk('deliveryOrders');
+  await Hive.deleteBoxFromDisk('publicSales');
   
   // Open Hive boxes
   await Future.wait([
@@ -56,6 +64,7 @@ void main() async {
     Hive.openBox('syncBox'),
     Hive.openBox<LoadingOrder>('loadingOrders'),
     Hive.openBox<DeliveryOrder>('deliveryOrders'),
+    Hive.openBox<PublicSale>('publicSales'),
   ]);
   
   runApp(MyApp());

@@ -8,13 +8,13 @@ class DeliveryOrder extends HiveObject {
   final int id;
 
   @HiveField(1)
-  final String orderNumber;
+  String orderNumber;
 
   @HiveField(2)
-  final String deliveryDate;
+  String deliveryDate;
 
   @HiveField(3)
-  final int route;
+  int route;
 
   @HiveField(4)
   final String routeName;

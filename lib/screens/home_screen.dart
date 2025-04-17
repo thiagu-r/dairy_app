@@ -181,6 +181,7 @@ import '../providers/auth_provider.dart';
 import '../providers/network_provider.dart';
 import 'load_orders/load_orders_dashboard.dart';
 import 'delivery_orders/delivery_orders_dashboard.dart';
+import 'public_sales/public_sales_dashboard.dart';
 import 'login_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -314,6 +315,18 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 _buildMenuCard(
                   context,
+                  'Public Sales',
+                  Icons.store,
+                  Colors.purple,
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => PublicSalesDashboard(),
+                    ),
+                  ),
+                ),
+                _buildMenuCard(
+                  context,
                   'Broken Orders',
                   Icons.broken_image,
                   Colors.red,
@@ -324,13 +337,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   'Returned Orders',
                   Icons.assignment_return,
                   Colors.orange,
-                  () => _showComingSoonDialog(context),
-                ),
-                _buildMenuCard(
-                  context,
-                  'Public Sales',
-                  Icons.storefront,
-                  Colors.purple,
                   () => _showComingSoonDialog(context),
                 ),
                 _buildMenuCard(

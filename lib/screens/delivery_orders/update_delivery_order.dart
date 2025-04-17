@@ -71,29 +71,39 @@ class _UpdateDeliveryOrderState extends State<UpdateDeliveryOrder> {
   }
 
   Future<void> _updateDeliveredQuantity(DeliveryOrderItem item, String newQuantity) async {
-    double currentQuantity = double.parse(item.deliveredQuantity);
-    double newQty = double.parse(newQuantity);
-    double available = _availableExtras[item.product] ?? 0;
+    if (newQuantity.isEmpty) return;
+    
+    try {
+      double currentQuantity = double.parse(item.deliveredQuantity);
+      double newQty = double.parse(newQuantity);
+      double available = _availableExtras[item.product] ?? 0;
 
-    if (newQty < currentQuantity) {
+      if (newQty < currentQuantity) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Cannot decrease delivered quantity')),
+        );
+        return;
+      }
+
+      if (newQty - currentQuantity > available) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Not enough stock available')),
+        );
+        return;
+      }
+
+      setState(() {
+        item.deliveredQuantity = newQuantity;
+        item.calculateTotalPrice();
+        _availableExtras[item.product] = available - (newQty - currentQuantity);
+        widget.deliveryOrder.items = _items; // Ensure delivery order has updated items
+        widget.deliveryOrder.updateTotalPrice(); // Update order total price
+      });
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Cannot decrease delivered quantity')),
+        SnackBar(content: Text('Invalid quantity format: $e')),
       );
-      return;
     }
-
-    if (newQty - currentQuantity > available) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Not enough stock available')),
-      );
-      return;
-    }
-
-    setState(() {
-      item.deliveredQuantity = newQuantity;
-      item.totalPrice = (double.parse(newQuantity) * double.parse(item.unitPrice)).toString();
-      _availableExtras[item.product] = available - (newQty - currentQuantity);
-    });
   }
 
   void _showAddItemDialog() {
@@ -142,30 +152,55 @@ class _UpdateDeliveryOrderState extends State<UpdateDeliveryOrder> {
             TextButton(
               onPressed: () {
                 if (selectedItem != null && quantity.isNotEmpty) {
-                  double qty = double.parse(quantity);
-                  double available = _availableExtras[selectedItem!.product] ?? 0;
-                  
-                  if (qty > available) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Not enough stock available')),
-                    );
-                    return;
-                  }
+                  try {
+                    double qty = double.parse(quantity);
+                    double available = _availableExtras[selectedItem!.product] ?? 0;
+                    
+                    if (qty > available) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Not enough stock available')),
+                      );
+                      return;
+                    }
 
-                  setState(() {
-                    _items.add(DeliveryOrderItem(
-                      id: 0, // New item, will be assigned by backend
-                      product: selectedItem!.product,
-                      productName: selectedItem!.productName,
-                      orderedQuantity: '0.000',
-                      extraQuantity: quantity,
-                      deliveredQuantity: quantity,
-                      unitPrice: '0', // Need to get from somewhere
-                      totalPrice: '0', // Need to calculate
-                    ));
-                    _availableExtras[selectedItem!.product] = available - qty;
-                  });
-                  Navigator.pop(context);
+                    // Find existing item if any
+                    DeliveryOrderItem? existingItem = _items.firstWhere(
+                      (item) => item.product == selectedItem!.product,
+                      orElse: () => DeliveryOrderItem(
+                        id: 0,
+                        product: selectedItem!.product,
+                        productName: selectedItem!.productName,
+                        orderedQuantity: '0.000',
+                        extraQuantity: '0.000',
+                        deliveredQuantity: '0.000',
+                        unitPrice: selectedItem!.unitPrice ?? '0',
+                        totalPrice: '0',
+                      ),
+                    );
+
+                    setState(() {
+                      if (!_items.contains(existingItem)) {
+                        // If it's a new item, add it to the list
+                        _items.add(existingItem);
+                      }
+                      
+                      // Update the quantities
+                      double currentQty = double.parse(existingItem.deliveredQuantity);
+                      double newQty = currentQty + qty;
+                      existingItem.deliveredQuantity = newQty.toStringAsFixed(3);
+                      existingItem.extraQuantity = (double.parse(existingItem.extraQuantity) + qty).toStringAsFixed(3);
+                      existingItem.calculateTotalPrice();
+                      
+                      _availableExtras[selectedItem!.product] = available - qty;
+                      widget.deliveryOrder.items = _items;
+                      widget.deliveryOrder.updateTotalPrice();
+                    });
+                    Navigator.pop(context);
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Invalid quantity format')),
+                    );
+                  }
                 }
               },
               child: Text('Add'),
@@ -197,166 +232,195 @@ class _UpdateDeliveryOrderState extends State<UpdateDeliveryOrder> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Update Delivery - ${widget.deliveryOrder.sellerName}'),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.save),
-            onPressed: _saveDeliveryOrder,
+    return WillPopScope(
+      onWillPop: () async {
+        // Show confirmation dialog before leaving
+        final result = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text('Unsaved Changes'),
+            content: Text('Do you want to save changes before leaving?'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context, true); // Close dialog
+                  Navigator.pop(context); // Close form
+                },
+                child: Text('Discard'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  await _saveDeliveryOrder();
+                  Navigator.pop(context, true);
+                },
+                child: Text('Save'),
+              ),
+            ],
           ),
-        ],
-      ),
-      body: _isLoading
-          ? Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                Expanded(
-                  child: ListView(
-                    padding: EdgeInsets.all(16),
-                    children: [
-                      // Order Items List
-                      Text(
-                        'Order Items',
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      SizedBox(height: 16),
-                      ListView.builder(
-                        shrinkWrap: true,
-                        physics: NeverScrollableScrollPhysics(),
-                        itemCount: _items.length,
-                        itemBuilder: (context, index) {
-                          final item = _items[index];
-                          return Card(
-                            margin: EdgeInsets.only(bottom: 8),
-                            child: Padding(
-                              padding: EdgeInsets.all(16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    item.productName,
-                                    style: Theme.of(context).textTheme.titleMedium,
-                                  ),
-                                  SizedBox(height: 8),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: TextFormField(
-                                          initialValue: item.deliveredQuantity,
-                                          decoration: InputDecoration(
-                                            labelText: 'Delivered Quantity',
-                                            helperText: 'Ordered: ${item.orderedQuantity}',
+        );
+        return result ?? false;
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text('Update Delivery - ${widget.deliveryOrder.sellerName}'),
+          actions: [
+            IconButton(
+              icon: Icon(Icons.save),
+              onPressed: _saveDeliveryOrder,
+            ),
+          ],
+        ),
+        body: _isLoading
+            ? Center(child: CircularProgressIndicator())
+            : Column(
+                children: [
+                  Expanded(
+                    child: ListView(
+                      padding: EdgeInsets.all(16),
+                      children: [
+                        // Order Items List
+                        Text(
+                          'Order Items',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        SizedBox(height: 16),
+                        ListView.builder(
+                          shrinkWrap: true,
+                          physics: NeverScrollableScrollPhysics(),
+                          itemCount: _items.length,
+                          itemBuilder: (context, index) {
+                            final item = _items[index];
+                            return Card(
+                              margin: EdgeInsets.only(bottom: 8),
+                              child: Padding(
+                                padding: EdgeInsets.all(16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      item.productName,
+                                      style: Theme.of(context).textTheme.titleMedium,
+                                    ),
+                                    SizedBox(height: 8),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: TextFormField(
+                                            initialValue: item.deliveredQuantity,
+                                            decoration: InputDecoration(
+                                              labelText: 'Delivered Quantity',
+                                              helperText: 'Ordered: ${item.orderedQuantity}',
+                                            ),
+                                            keyboardType: TextInputType.number,
+                                            onChanged: (value) => _updateDeliveredQuantity(item, value),
                                           ),
-                                          keyboardType: TextInputType.number,
-                                          onChanged: (value) => _updateDeliveredQuantity(item, value),
                                         ),
-                                      ),
-                                      SizedBox(width: 16),
-                                      Text('Available: ${_availableExtras[item.product]?.toStringAsFixed(3)}'),
-                                    ],
-                                  ),
-                                ],
+                                        SizedBox(width: 16),
+                                        Text('Available: ${_availableExtras[item.product]?.toStringAsFixed(3)}'),
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          );
-                        },
-                      ),
-                      SizedBox(height: 24),
-                      
-                      // Payment Details Section
-                      Text(
-                        'Payment Details',
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      SizedBox(height: 16),
-                      
-                      // Total Price (Read-only)
-                      TextFormField(
-                        initialValue: widget.deliveryOrder.totalPrice,
-                        decoration: InputDecoration(
-                          labelText: 'Total Price',
-                          border: OutlineInputBorder(),
+                            );
+                          },
                         ),
-                        readOnly: true,
-                        enabled: false,
-                      ),
-                      SizedBox(height: 16),
-                      
-                      // Opening Balance (Read-only)
-                      TextFormField(
-                        initialValue: widget.deliveryOrder.openingBalance,
-                        decoration: InputDecoration(
-                          labelText: 'Opening Balance',
-                          border: OutlineInputBorder(),
+                        SizedBox(height: 24),
+                        
+                        // Payment Details Section
+                        Text(
+                          'Payment Details',
+                          style: Theme.of(context).textTheme.titleLarge,
                         ),
-                        readOnly: true,
-                        enabled: false,
-                      ),
-                      SizedBox(height: 16),
-                      
-                      // Amount Collected
-                      TextFormField(
-                        initialValue: widget.deliveryOrder.amountCollected,
-                        decoration: InputDecoration(
-                          labelText: 'Amount Collected',
-                          border: OutlineInputBorder(),
+                        SizedBox(height: 16),
+                        
+                        // Total Price (Read-only)
+                        TextFormField(
+                          initialValue: widget.deliveryOrder.totalPrice,
+                          decoration: InputDecoration(
+                            labelText: 'Total Price',
+                            border: OutlineInputBorder(),
+                          ),
+                          readOnly: true,
+                          enabled: false,
                         ),
-                        keyboardType: TextInputType.number,
-                        onChanged: (value) {
-                          setState(() {
-                            widget.deliveryOrder.amountCollected = value;
-                            widget.deliveryOrder.updateBalanceAmount();
-                          });
-                        },
-                      ),
-                      SizedBox(height: 16),
-                      
-                      // Balance Amount (Read-only)
-                      TextFormField(
-                        initialValue: widget.deliveryOrder.balanceAmount,
-                        decoration: InputDecoration(
-                          labelText: 'Balance Amount',
-                          border: OutlineInputBorder(),
+                        SizedBox(height: 16),
+                        
+                        // Opening Balance (Read-only)
+                        TextFormField(
+                          initialValue: widget.deliveryOrder.openingBalance,
+                          decoration: InputDecoration(
+                            labelText: 'Opening Balance',
+                            border: OutlineInputBorder(),
+                          ),
+                          readOnly: true,
+                          enabled: false,
                         ),
-                        readOnly: true,
-                        enabled: false,
-                      ),
-                      SizedBox(height: 16),
-                      
-                      // Payment Method
-                      DropdownButtonFormField<String>(
-                        value: widget.deliveryOrder.paymentMethod,
-                        decoration: InputDecoration(
-                          labelText: 'Payment Method',
-                          border: OutlineInputBorder(),
+                        SizedBox(height: 16),
+                        
+                        // Amount Collected
+                        TextFormField(
+                          initialValue: widget.deliveryOrder.amountCollected,
+                          decoration: InputDecoration(
+                            labelText: 'Amount Collected',
+                            border: OutlineInputBorder(),
+                          ),
+                          keyboardType: TextInputType.number,
+                          onChanged: (value) {
+                            setState(() {
+                              widget.deliveryOrder.amountCollected = value;
+                              widget.deliveryOrder.updateBalanceAmount();
+                            });
+                          },
                         ),
-                        items: [
-                          DropdownMenuItem(value: 'cash', child: Text('Cash')),
-                          DropdownMenuItem(value: 'credit', child: Text('Credit')),
-                          DropdownMenuItem(value: 'bank', child: Text('Bank Transfer')),
-                        ],
-                        onChanged: (value) {
-                          setState(() {
-                            widget.deliveryOrder.paymentMethod = value ?? 'cash';
-                          });
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: EdgeInsets.all(16),
-                  child: ElevatedButton(
-                    onPressed: _showAddItemDialog,
-                    child: Text('Add New Item'),
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: Size(double.infinity, 48),
+                        SizedBox(height: 16),
+                        
+                        // Balance Amount (Read-only)
+                        TextFormField(
+                          initialValue: widget.deliveryOrder.balanceAmount,
+                          decoration: InputDecoration(
+                            labelText: 'Balance Amount',
+                            border: OutlineInputBorder(),
+                          ),
+                          readOnly: true,
+                          enabled: false,
+                        ),
+                        SizedBox(height: 16),
+                        
+                        // Payment Method
+                        DropdownButtonFormField<String>(
+                          value: widget.deliveryOrder.paymentMethod,
+                          decoration: InputDecoration(
+                            labelText: 'Payment Method',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: [
+                            DropdownMenuItem(value: 'cash', child: Text('Cash')),
+                            DropdownMenuItem(value: 'credit', child: Text('Credit')),
+                            DropdownMenuItem(value: 'bank', child: Text('Bank Transfer')),
+                          ],
+                          onChanged: (value) {
+                            setState(() {
+                              widget.deliveryOrder.paymentMethod = value ?? 'cash';
+                            });
+                          },
+                        ),
+                      ],
                     ),
                   ),
-                ),
-              ],
-            ),
+                  Padding(
+                    padding: EdgeInsets.all(16),
+                    child: ElevatedButton(
+                      onPressed: _showAddItemDialog,
+                      child: Text('Add New Item'),
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: Size(double.infinity, 48),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+      ),
     );
   }
 }

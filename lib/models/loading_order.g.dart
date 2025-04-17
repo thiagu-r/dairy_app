@@ -72,15 +72,16 @@ class LoadingOrderItemAdapter extends TypeAdapter<LoadingOrderItem> {
       product: fields[0] as int,
       productName: fields[1] as String,
       totalQuantity: fields[2] as String,
-      loadedQuantity: fields[3] as String,
-      remainingQuantity: fields[4] as String,
+      unitPrice: fields[3] as String?,
+      loadedQuantity: fields[4] as String,
+      remainingQuantity: fields[5] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, LoadingOrderItem obj) {
     writer
-      ..writeByte(5)
+      ..writeByte(6)
       ..writeByte(0)
       ..write(obj.product)
       ..writeByte(1)
@@ -88,8 +89,10 @@ class LoadingOrderItemAdapter extends TypeAdapter<LoadingOrderItem> {
       ..writeByte(2)
       ..write(obj.totalQuantity)
       ..writeByte(3)
-      ..write(obj.loadedQuantity)
+      ..write(obj.unitPrice)
       ..writeByte(4)
+      ..write(obj.loadedQuantity)
+      ..writeByte(5)
       ..write(obj.remainingQuantity);
   }
 

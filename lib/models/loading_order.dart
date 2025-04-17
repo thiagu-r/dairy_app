@@ -72,17 +72,21 @@ class LoadingOrderItem extends HiveObject {
   final String totalQuantity;
 
   @HiveField(3)
-  String loadedQuantity;
+  final String? unitPrice;
 
   @HiveField(4)
+  final String loadedQuantity;
+
+  @HiveField(5)
   String remainingQuantity;
 
   LoadingOrderItem({
     required this.product,
     required this.productName,
     required this.totalQuantity,
-    this.loadedQuantity = "0",
-    this.remainingQuantity = "0",
+    this.unitPrice,
+    required this.loadedQuantity,
+    required this.remainingQuantity,
   });
 
   factory LoadingOrderItem.fromJson(Map<String, dynamic> json) {
@@ -90,6 +94,7 @@ class LoadingOrderItem extends HiveObject {
       product: json['product'] is int ? json['product'] : int.parse(json['product'].toString()),
       productName: json['product_name']?.toString() ?? '',
       totalQuantity: json['total_quantity']?.toString() ?? "0",
+      unitPrice: json['unit_price']?.toString(),
       loadedQuantity: json['loaded_quantity']?.toString() ?? "0",
       remainingQuantity: json['remaining_quantity']?.toString() ?? "0",
     );
@@ -99,6 +104,7 @@ class LoadingOrderItem extends HiveObject {
     'product': product,
     'product_name': productName,
     'total_quantity': totalQuantity,
+    'unit_price': unitPrice,
     'loaded_quantity': loadedQuantity,
     'remaining_quantity': remainingQuantity,
   };
