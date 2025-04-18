@@ -19,19 +19,78 @@ class UpdateDeliveryOrder extends StatefulWidget {
 
 class _UpdateDeliveryOrderState extends State<UpdateDeliveryOrder> {
   final OfflineStorageService _storageService = OfflineStorageService();
+  late DeliveryOrder _workingDeliveryOrder;
   late List<DeliveryOrderItem> _items;
   late Map<int, LoadingOrderItem> _loadingItems;
   late Map<int, double> _availableExtras;
   bool _isLoading = true;
+  
+  // Add a map to store controllers for each item
+  final Map<int, TextEditingController> _quantityControllers = {};
+
+  // Add a controller for amount collected
+  late TextEditingController _amountCollectedController;
 
   @override
   void initState() {
     super.initState();
-    _items = List.from(widget.deliveryOrder.items);
+    // Create a deep copy of the delivery order
+    _workingDeliveryOrder = DeliveryOrder(
+      id: widget.deliveryOrder.id,
+      orderNumber: widget.deliveryOrder.orderNumber,
+      deliveryDate: widget.deliveryOrder.deliveryDate,
+      route: widget.deliveryOrder.route,
+      routeName: widget.deliveryOrder.routeName,
+      sellerName: widget.deliveryOrder.sellerName,
+      status: widget.deliveryOrder.status,
+      items: widget.deliveryOrder.items.map((item) => DeliveryOrderItem(
+        id: item.id,
+        product: item.product,
+        productName: item.productName,
+        orderedQuantity: item.orderedQuantity,
+        extraQuantity: item.extraQuantity,
+        deliveredQuantity: item.deliveredQuantity,
+        unitPrice: item.unitPrice,
+        totalPrice: item.totalPrice,
+      )).toList(),
+      seller: widget.deliveryOrder.seller,
+      deliveryTime: widget.deliveryOrder.deliveryTime,
+      totalPrice: widget.deliveryOrder.totalPrice,
+      openingBalance: widget.deliveryOrder.openingBalance,
+      amountCollected: widget.deliveryOrder.amountCollected,
+      balanceAmount: widget.deliveryOrder.balanceAmount,
+      paymentMethod: widget.deliveryOrder.paymentMethod,
+      notes: widget.deliveryOrder.notes,
+      syncStatus: widget.deliveryOrder.syncStatus,
+    );
+    
+    _items = _workingDeliveryOrder.items;
     _loadingItems = {
       for (var item in widget.loadingOrder.items) item.product: item
     };
     _calculateAvailableExtras();
+
+    // Initialize controllers for existing items without listeners
+    for (var item in _items) {
+      _quantityControllers[item.product] = TextEditingController(
+        text: item.deliveredQuantity
+      );
+    }
+
+    // Initialize amount collected controller
+    _amountCollectedController = TextEditingController(
+      text: _workingDeliveryOrder.amountCollected
+    );
+  }
+
+  @override
+  void dispose() {
+    // Clean up controllers
+    for (var controller in _quantityControllers.values) {
+      controller.dispose();
+    }
+    _amountCollectedController.dispose();
+    super.dispose();
   }
 
   Future<void> _calculateAvailableExtras() async {
@@ -70,6 +129,70 @@ class _UpdateDeliveryOrderState extends State<UpdateDeliveryOrder> {
     }
   }
 
+  void _updateOrderTotals() {
+    // Calculate total price
+    double orderTotal = 0;
+    for (var item in _items) {
+      orderTotal += double.parse(item.totalPrice);
+    }
+    
+    setState(() {
+      _workingDeliveryOrder.totalPrice = orderTotal.toStringAsFixed(2);
+      _updateBalanceAmount();
+    });
+  }
+
+  void _updateBalanceAmount() {
+    double total = double.parse(_workingDeliveryOrder.totalPrice) + 
+                   double.parse(_workingDeliveryOrder.openingBalance);
+    double collected = double.parse(_amountCollectedController.text.isEmpty 
+        ? '0' 
+        : _amountCollectedController.text);
+    
+    setState(() {
+      _workingDeliveryOrder.amountCollected = _amountCollectedController.text;
+      _workingDeliveryOrder.balanceAmount = (total - collected).toStringAsFixed(2);
+    });
+  }
+
+  void _handleQuantityChange(DeliveryOrderItem item, String newQuantity) {
+    if (newQuantity.isEmpty) return;
+    
+    try {
+      double currentQuantity = double.parse(item.deliveredQuantity);
+      double newQty = double.parse(newQuantity);
+      double available = _availableExtras[item.product] ?? 0;
+
+      if (newQty < currentQuantity) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Cannot decrease delivered quantity')),
+        );
+        _quantityControllers[item.product]?.text = item.deliveredQuantity;
+        return;
+      }
+
+      if (newQty - currentQuantity > available) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Not enough stock available')),
+        );
+        _quantityControllers[item.product]?.text = item.deliveredQuantity;
+        return;
+      }
+
+      setState(() {
+        item.deliveredQuantity = newQuantity;
+        double unitPrice = double.parse(item.unitPrice);
+        item.totalPrice = (newQty * unitPrice).toStringAsFixed(2);
+        
+        _availableExtras[item.product] = available - (newQty - currentQuantity);
+        
+        _updateOrderTotals();
+      });
+    } catch (e) {
+      // Ignore format errors while typing
+    }
+  }
+
   Future<void> _updateDeliveredQuantity(DeliveryOrderItem item, String newQuantity) async {
     if (newQuantity.isEmpty) return;
     
@@ -93,11 +216,16 @@ class _UpdateDeliveryOrderState extends State<UpdateDeliveryOrder> {
       }
 
       setState(() {
+        // Update the item's delivered quantity and total price
         item.deliveredQuantity = newQuantity;
-        item.calculateTotalPrice();
+        double unitPrice = double.parse(item.unitPrice);
+        item.totalPrice = (newQty * unitPrice).toStringAsFixed(2);
+        
+        // Update available extras
         _availableExtras[item.product] = available - (newQty - currentQuantity);
-        widget.deliveryOrder.items = _items; // Ensure delivery order has updated items
-        widget.deliveryOrder.updateTotalPrice(); // Update order total price
+        
+        // Update order totals
+        _updateOrderTotals();
       });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -117,6 +245,18 @@ class _UpdateDeliveryOrderState extends State<UpdateDeliveryOrder> {
           title: Text('Add New Item'),
           content: StatefulBuilder(
             builder: (context, setState) {
+              // Calculate preview total price
+              double previewTotal = 0;
+              if (selectedItem != null && quantity.isNotEmpty) {
+                try {
+                  double qty = double.parse(quantity);
+                  double unitPrice = double.parse(selectedItem!.unitPrice ?? "0");
+                  previewTotal = qty * unitPrice;
+                } catch (e) {
+                  // Handle parsing errors silently
+                }
+              }
+
               return Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -138,8 +278,18 @@ class _UpdateDeliveryOrderState extends State<UpdateDeliveryOrder> {
                   TextField(
                     decoration: InputDecoration(labelText: 'Quantity'),
                     keyboardType: TextInputType.number,
-                    onChanged: (value) => quantity = value,
+                    onChanged: (value) {
+                      setState(() => quantity = value);
+                    },
                   ),
+                  if (selectedItem != null && quantity.isNotEmpty)
+                    Padding(
+                      padding: EdgeInsets.only(top: 16),
+                      child: Text(
+                        'Total: Rs.${previewTotal.toStringAsFixed(2)}',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
                 ],
               );
             },
@@ -163,8 +313,7 @@ class _UpdateDeliveryOrderState extends State<UpdateDeliveryOrder> {
                       return;
                     }
 
-                    // Find existing item if any
-                    DeliveryOrderItem? existingItem = _items.firstWhere(
+                    var existingItem = _items.firstWhere(
                       (item) => item.product == selectedItem!.product,
                       orElse: () => DeliveryOrderItem(
                         id: 0,
@@ -180,21 +329,22 @@ class _UpdateDeliveryOrderState extends State<UpdateDeliveryOrder> {
 
                     setState(() {
                       if (!_items.contains(existingItem)) {
-                        // If it's a new item, add it to the list
                         _items.add(existingItem);
+                        // Create controller for new item
+                        _quantityControllers[existingItem.product] = TextEditingController(
+                          text: existingItem.deliveredQuantity
+                        )..addListener(() {
+                          _handleQuantityChange(existingItem, _quantityControllers[existingItem.product]!.text);
+                        });
                       }
                       
-                      // Update the quantities
                       double currentQty = double.parse(existingItem.deliveredQuantity);
                       double newQty = currentQty + qty;
-                      existingItem.deliveredQuantity = newQty.toStringAsFixed(3);
-                      existingItem.extraQuantity = (double.parse(existingItem.extraQuantity) + qty).toStringAsFixed(3);
-                      existingItem.calculateTotalPrice();
                       
-                      _availableExtras[selectedItem!.product] = available - qty;
-                      widget.deliveryOrder.items = _items;
-                      widget.deliveryOrder.updateTotalPrice();
+                      // Update controller text which will trigger the listener
+                      _quantityControllers[existingItem.product]?.text = newQty.toStringAsFixed(3);
                     });
+
                     Navigator.pop(context);
                   } catch (e) {
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -214,13 +364,19 @@ class _UpdateDeliveryOrderState extends State<UpdateDeliveryOrder> {
   Future<void> _saveDeliveryOrder() async {
     try {
       // Only set delivery time if it hasn't been set before
-      if (widget.deliveryOrder.deliveryTime == null || widget.deliveryOrder.deliveryTime!.isEmpty) {
+      if (_workingDeliveryOrder.deliveryTime == null || _workingDeliveryOrder.deliveryTime!.isEmpty) {
         final now = DateTime.now();
-        widget.deliveryOrder.deliveryTime = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
+        _workingDeliveryOrder.deliveryTime = DateFormat('yyyy-MM-dd HH:mm:ss').format(now);
       }
       
-      widget.deliveryOrder.items = _items;
-      widget.deliveryOrder.updateTotalPrice(); // This will also update balance amount
+      // Copy the working delivery order back to the original
+      widget.deliveryOrder.items = List.from(_workingDeliveryOrder.items);
+      widget.deliveryOrder.totalPrice = _workingDeliveryOrder.totalPrice;
+      widget.deliveryOrder.amountCollected = _amountCollectedController.text;
+      widget.deliveryOrder.balanceAmount = _workingDeliveryOrder.balanceAmount;
+      widget.deliveryOrder.paymentMethod = _workingDeliveryOrder.paymentMethod;
+      widget.deliveryOrder.deliveryTime = _workingDeliveryOrder.deliveryTime;
+      
       await _storageService.updateDeliveryOrder(widget.deliveryOrder);
       Navigator.pop(context, true);
     } catch (e) {
@@ -230,34 +386,135 @@ class _UpdateDeliveryOrderState extends State<UpdateDeliveryOrder> {
     }
   }
 
+  void _updateItemQuantity(DeliveryOrderItem item) {
+    final newQuantity = _quantityControllers[item.product]?.text ?? '';
+    if (newQuantity.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a quantity')),
+      );
+      return;
+    }
+
+    try {
+      double currentQuantity = double.parse(item.deliveredQuantity);
+      double newQty = double.parse(newQuantity);
+      double available = _availableExtras[item.product] ?? 0;
+
+      // Add the current quantity to available if we're updating
+      if (currentQuantity > 0) {
+        available += currentQuantity;
+      }
+
+      if (newQty > available) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Not enough stock available')),
+        );
+        _quantityControllers[item.product]?.text = item.deliveredQuantity;
+        return;
+      }
+
+      setState(() {
+        item.deliveredQuantity = newQuantity;
+        double unitPrice = double.parse(item.unitPrice);
+        item.totalPrice = (newQty * unitPrice).toStringAsFixed(2);
+        
+        _availableExtras[item.product] = available - newQty;
+        
+        _updateOrderTotals();
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Quantity updated successfully')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid quantity format')),
+      );
+      _quantityControllers[item.product]?.text = item.deliveredQuantity;
+    }
+  }
+
+  Widget _buildPaymentDetails() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Payment Details',
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
+        SizedBox(height: 16),
+        
+        // Total Price
+        Text(
+          'Total Price: Rs.${_workingDeliveryOrder.totalPrice}',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        SizedBox(height: 16),
+        
+        // Opening Balance
+        Text(
+          'Opening Balance: Rs.${_workingDeliveryOrder.openingBalance}',
+          style: TextStyle(fontSize: 16),
+        ),
+        SizedBox(height: 16),
+        
+        // Amount Collected
+        TextFormField(
+          controller: _amountCollectedController,
+          decoration: InputDecoration(
+            labelText: 'Amount Collected',
+            border: OutlineInputBorder(),
+            prefixText: 'Rs.',
+          ),
+          keyboardType: TextInputType.numberWithOptions(decimal: true),
+          onChanged: (value) => _updateBalanceAmount(),
+        ),
+        SizedBox(height: 16),
+        
+        // Balance Amount
+        Text(
+          'Balance Amount: Rs.${_workingDeliveryOrder.balanceAmount}',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: double.parse(_workingDeliveryOrder.balanceAmount) > 0 
+                ? Colors.red 
+                : Colors.green,
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
-        // Show confirmation dialog before leaving
+        // Show confirmation dialog if there are unsaved changes
         final result = await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
             title: Text('Unsaved Changes'),
-            content: Text('Do you want to save changes before leaving?'),
+            content: Text('Do you want to save your changes?'),
             actions: [
               TextButton(
-                onPressed: () {
-                  Navigator.pop(context, true); // Close dialog
-                  Navigator.pop(context); // Close form
-                },
+                onPressed: () => Navigator.of(context).pop(true),
                 child: Text('Discard'),
               ),
               TextButton(
                 onPressed: () async {
                   await _saveDeliveryOrder();
-                  Navigator.pop(context, true);
+                  Navigator.of(context).pop(false);
                 },
                 child: Text('Save'),
               ),
             ],
           ),
         );
+        
         return result ?? false;
       },
       child: Scaffold(
@@ -305,19 +562,29 @@ class _UpdateDeliveryOrderState extends State<UpdateDeliveryOrder> {
                                     Row(
                                       children: [
                                         Expanded(
-                                          child: TextFormField(
-                                            initialValue: item.deliveredQuantity,
+                                          child: TextField(
+                                            controller: _quantityControllers[item.product],
                                             decoration: InputDecoration(
                                               labelText: 'Delivered Quantity',
                                               helperText: 'Ordered: ${item.orderedQuantity}',
                                             ),
                                             keyboardType: TextInputType.number,
-                                            onChanged: (value) => _updateDeliveredQuantity(item, value),
                                           ),
                                         ),
-                                        SizedBox(width: 16),
+                                        SizedBox(width: 8),
+                                        IconButton(
+                                          icon: Icon(Icons.check_circle_outline),
+                                          onPressed: () => _updateItemQuantity(item),
+                                          tooltip: 'Update Quantity',
+                                        ),
+                                        SizedBox(width: 8),
                                         Text('Available: ${_availableExtras[item.product]?.toStringAsFixed(3)}'),
                                       ],
+                                    ),
+                                    SizedBox(height: 8),
+                                    Text(
+                                      'Total: Rs.${item.totalPrice}',
+                                      style: TextStyle(fontWeight: FontWeight.bold),
                                     ),
                                   ],
                                 ),
@@ -328,64 +595,10 @@ class _UpdateDeliveryOrderState extends State<UpdateDeliveryOrder> {
                         SizedBox(height: 24),
                         
                         // Payment Details Section
-                        Text(
-                          'Payment Details',
-                          style: Theme.of(context).textTheme.titleLarge,
+                        Padding(
+                          padding: EdgeInsets.all(16),
+                          child: _buildPaymentDetails(),
                         ),
-                        SizedBox(height: 16),
-                        
-                        // Total Price (Read-only)
-                        TextFormField(
-                          initialValue: widget.deliveryOrder.totalPrice,
-                          decoration: InputDecoration(
-                            labelText: 'Total Price',
-                            border: OutlineInputBorder(),
-                          ),
-                          readOnly: true,
-                          enabled: false,
-                        ),
-                        SizedBox(height: 16),
-                        
-                        // Opening Balance (Read-only)
-                        TextFormField(
-                          initialValue: widget.deliveryOrder.openingBalance,
-                          decoration: InputDecoration(
-                            labelText: 'Opening Balance',
-                            border: OutlineInputBorder(),
-                          ),
-                          readOnly: true,
-                          enabled: false,
-                        ),
-                        SizedBox(height: 16),
-                        
-                        // Amount Collected
-                        TextFormField(
-                          initialValue: widget.deliveryOrder.amountCollected,
-                          decoration: InputDecoration(
-                            labelText: 'Amount Collected',
-                            border: OutlineInputBorder(),
-                          ),
-                          keyboardType: TextInputType.number,
-                          onChanged: (value) {
-                            setState(() {
-                              widget.deliveryOrder.amountCollected = value;
-                              widget.deliveryOrder.updateBalanceAmount();
-                            });
-                          },
-                        ),
-                        SizedBox(height: 16),
-                        
-                        // Balance Amount (Read-only)
-                        TextFormField(
-                          initialValue: widget.deliveryOrder.balanceAmount,
-                          decoration: InputDecoration(
-                            labelText: 'Balance Amount',
-                            border: OutlineInputBorder(),
-                          ),
-                          readOnly: true,
-                          enabled: false,
-                        ),
-                        SizedBox(height: 16),
                         
                         // Payment Method
                         DropdownButtonFormField<String>(
