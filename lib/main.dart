@@ -10,6 +10,8 @@ import 'models/user.dart';
 import 'models/loading_order.dart';
 import 'models/delivery_order.dart';
 import 'models/public_sale.dart';
+import 'models/expense.dart';
+import 'models/route.dart' as route_model;
 import 'providers/auth_provider.dart';
 import 'providers/network_provider.dart';
 import 'screens/splash_screen.dart';
@@ -49,11 +51,18 @@ void main() async {
   if (!Hive.isAdapterRegistered(7)) {
     Hive.registerAdapter(PublicSaleItemAdapter());
   }
+  if (!Hive.isAdapterRegistered(8)) {
+    Hive.registerAdapter(ExpenseAdapter());
+  }
+  if (!Hive.isAdapterRegistered(9)) {
+    Hive.registerAdapter(route_model.RouteAdapter());
+  }
   
   // Clear existing boxes to avoid type conflicts
   await Hive.deleteBoxFromDisk('loadingOrders');
   await Hive.deleteBoxFromDisk('deliveryOrders');
   await Hive.deleteBoxFromDisk('publicSales');
+  await Hive.deleteBoxFromDisk('expenses');
   
   // Open Hive boxes
   await Future.wait([
@@ -65,6 +74,8 @@ void main() async {
     Hive.openBox<LoadingOrder>('loadingOrders'),
     Hive.openBox<DeliveryOrder>('deliveryOrders'),
     Hive.openBox<PublicSale>('publicSales'),
+    Hive.openBox<Expense>('expenses'),
+    Hive.openBox<route_model.Route>('routes'),
   ]);
   
   runApp(MyApp());

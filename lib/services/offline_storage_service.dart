@@ -2,11 +2,31 @@ import 'package:hive/hive.dart';
 import '../models/loading_order.dart';
 import '../models/delivery_order.dart';
 import '../models/public_sale.dart';
+import '../models/expense.dart';
+import '../models/route.dart' as route_model;
 
 class OfflineStorageService {
   static const String loadingOrdersBox = 'loadingOrders';
   static const String deliveryOrdersBox = 'deliveryOrders';
   static const String publicSalesBox = 'publicSales';
+  static const String expensesBox = 'expenses';
+  static const String routesBox = 'routes';
+
+  // Routes methods
+  Future<void> addRoute(route_model.Route route) async {
+    final box = await Hive.openBox<route_model.Route>(routesBox);
+    await box.add(route);
+  }
+
+  Future<List<route_model.Route>> getRoutes() async {
+    final box = await Hive.openBox<route_model.Route>(routesBox);
+    return box.values.toList();
+  }
+
+  Future<route_model.Route?> getRouteById(int id) async {
+    final box = await Hive.openBox<route_model.Route>(routesBox);
+    return box.values.firstWhere((route) => route.id == id);
+  }
 
   // Loading Orders methods
   Future<void> storeLoadingOrder(LoadingOrder order) async {
@@ -107,5 +127,23 @@ class OfflineStorageService {
   Future<void> storePublicSale(PublicSale sale) async {
     final box = await Hive.openBox<PublicSale>(publicSalesBox);
     await box.add(sale);
+  }
+
+  // Expenses methods
+  Future<void> addExpense(Expense expense) async {
+    final box = await Hive.openBox<Expense>(expensesBox);
+    await box.add(expense);
+  }
+
+  Future<List<Expense>> getExpensesByDate(String date) async {
+    final box = await Hive.openBox<Expense>(expensesBox);
+    return box.values.where((expense) => expense.date == date).toList();
+  }
+
+  Future<List<Expense>> getExpensesByDateAndRoute(String date, int route) async {
+    final box = await Hive.openBox<Expense>(expensesBox);
+    return box.values
+        .where((expense) => expense.date == date && expense.route == route)
+        .toList();
   }
 }

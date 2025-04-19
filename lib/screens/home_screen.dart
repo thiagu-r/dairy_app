@@ -175,6 +175,7 @@ import 'load_orders/load_orders_dashboard.dart';
 import 'delivery_orders/delivery_orders_dashboard.dart';
 import 'public_sales/public_sales_dashboard.dart';
 import 'broken_orders/broken_orders_screen.dart';
+import 'expenses/expenses_dashboard.dart';
 import 'login_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -183,6 +184,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  // Remove the OfflineStorageService and getCurrentRouteId method since we don't need them
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -343,6 +346,18 @@ class _HomeScreenState extends State<HomeScreen> {
                   Icons.attach_money,
                   Colors.teal,
                   () => _showComingSoonDialog(context),
+                ),
+                _buildMenuCard(
+                  context,
+                  'Expenses',
+                  Icons.account_balance_wallet,
+                  Colors.indigo,
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ExpensesDashboard(),  // Remove routeId parameter
+                    ),
+                  ),
                 ),
               ],
             ),
