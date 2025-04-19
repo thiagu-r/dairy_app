@@ -179,61 +179,65 @@ class _UpdateDeliveryOrderState extends State<UpdateDeliveryOrder> with WidgetsB
     );
   }
 
+  Widget _buildItemCard(DeliveryOrderItem item) {
+    return Card(
+      margin: EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              item.productName,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _quantityControllers[item.product],
+                    decoration: InputDecoration(
+                      labelText: 'Delivered Quantity',
+                      helperText: 'Ordered: ${item.orderedQuantity}',
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
+                SizedBox(width: 8),
+                IconButton(
+                  icon: Icon(Icons.check_circle_outline),
+                  onPressed: () => _updateItemQuantity(item),
+                  tooltip: 'Update Quantity',
+                ),
+              ],
+            ),
+            SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Available: ${_availableExtras[item.product]?.toStringAsFixed(3)}'),
+                Text(
+                  'Total: Rs.${item.totalPrice}',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   List<Widget> _buildFilteredItemsList() {
     return _items
         .where((item) {
-          // Filter by search query
           final matchesSearch = item.productName.toLowerCase().contains(_searchQuery);
-          
-          // Show item only if it has ordered or delivered quantity
           final hasQuantity = double.parse(item.orderedQuantity) > 0 || 
                             double.parse(item.deliveredQuantity) > 0;
-          
           return matchesSearch && (hasQuantity || _searchQuery.isNotEmpty);
         })
-        .map((item) => Card(
-              margin: EdgeInsets.only(bottom: 8),
-              child: Padding(
-                padding: EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.productName,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: _quantityControllers[item.product],
-                            decoration: InputDecoration(
-                              labelText: 'Delivered Quantity',
-                              helperText: 'Ordered: ${item.orderedQuantity}',
-                            ),
-                            keyboardType: TextInputType.number,
-                          ),
-                        ),
-                        SizedBox(width: 8),
-                        IconButton(
-                          icon: Icon(Icons.check_circle_outline),
-                          onPressed: () => _updateItemQuantity(item),
-                          tooltip: 'Update Quantity',
-                        ),
-                        SizedBox(width: 8),
-                        Text('Available: ${_availableExtras[item.product]?.toStringAsFixed(3)}'),
-                      ],
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      'Total: Rs.${item.totalPrice}',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
-              ),
-            ))
+        .map((item) => _buildItemCard(item))
         .toList();
   }
 
@@ -243,22 +247,19 @@ class _UpdateDeliveryOrderState extends State<UpdateDeliveryOrder> with WidgetsB
     setState(() => _isLoading = true);
     
     try {
-      // Get all delivery orders for this loading order
       final allDeliveryOrders = await _storageService.getDeliveryOrdersByDateAndRoute(
         widget.deliveryOrder.deliveryDate,
         widget.deliveryOrder.route,
       );
 
-      // Get all public sales for this date and route
       final publicSales = await _storageService.getPublicSalesByDateAndRoute(
         widget.deliveryOrder.deliveryDate,
         widget.deliveryOrder.route,
       );
 
-      // Calculate used quantities for each product
       Map<int, double> usedQuantities = {};
       
-      // Add quantities from all other delivery orders (excluding current one)
+      // Add quantities from all other delivery orders
       for (var order in allDeliveryOrders) {
         if (order.id != widget.deliveryOrder.id) {
           for (var item in order.items) {
@@ -280,6 +281,14 @@ class _UpdateDeliveryOrderState extends State<UpdateDeliveryOrder> with WidgetsB
       for (var item in _items) {
         usedQuantities[item.product] = (usedQuantities[item.product] ?? 0) +
             double.parse(item.deliveredQuantity);
+      }
+
+      // Add broken quantities from loading order
+      for (var item in widget.loadingOrder.items) {
+        if (item.brokenQuantity != null && item.brokenQuantity! > 0) {
+          usedQuantities[item.product] = (usedQuantities[item.product] ?? 0) +
+              item.brokenQuantity!;
+        }
       }
 
       // Calculate available extras
@@ -337,15 +346,10 @@ class _UpdateDeliveryOrderState extends State<UpdateDeliveryOrder> with WidgetsB
       double newQty = double.parse(newQuantity);
       double available = _availableExtras[item.product] ?? 0;
 
-      if (newQty < currentQuantity) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cannot decrease delivered quantity')),
-        );
-        _quantityControllers[item.product]?.text = item.deliveredQuantity;
-        return;
-      }
+      // Add current quantity to available for recalculation
+      available += currentQuantity;
 
-      if (newQty - currentQuantity > available) {
+      if (newQty > available) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Not enough stock available')),
         );
@@ -358,12 +362,15 @@ class _UpdateDeliveryOrderState extends State<UpdateDeliveryOrder> with WidgetsB
         double unitPrice = double.parse(item.unitPrice);
         item.totalPrice = (newQty * unitPrice).toStringAsFixed(2);
         
-        _availableExtras[item.product] = available - (newQty - currentQuantity);
+        _availableExtras[item.product] = available - newQty;
         
         _updateOrderTotals();
       });
     } catch (e) {
-      // Ignore format errors while typing
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid quantity format')),
+      );
+      _quantityControllers[item.product]?.text = item.deliveredQuantity;
     }
   }
 
@@ -456,9 +463,9 @@ class _UpdateDeliveryOrderState extends State<UpdateDeliveryOrder> with WidgetsB
                       setState(() => quantity = value);
                     },
                   ),
-                  if (selectedItem != null && quantity.isNotEmpty)
+                  if (previewTotal > 0)
                     Padding(
-                      padding: EdgeInsets.only(top: 16),
+                      padding: EdgeInsets.only(top: 8),
                       child: Text(
                         'Total: Rs.${previewTotal.toStringAsFixed(2)}',
                         style: TextStyle(fontWeight: FontWeight.bold),
@@ -494,7 +501,6 @@ class _UpdateDeliveryOrderState extends State<UpdateDeliveryOrder> with WidgetsB
                         product: selectedItem!.product,
                         productName: selectedItem!.productName,
                         orderedQuantity: '0.000',
-                        extraQuantity: '0.000',
                         deliveredQuantity: '0.000',
                         unitPrice: selectedItem!.unitPrice ?? '0',
                         totalPrice: '0',

@@ -119,6 +119,14 @@ class _AddPublicSaleState extends State<AddPublicSale> with WidgetsBindingObserv
         }
       }
 
+      // Add broken quantities from loading order
+      for (var item in loadingOrder.items) {
+        if (item.brokenQuantity != null && item.brokenQuantity! > 0) {
+          usedQuantities[item.product] = (usedQuantities[item.product] ?? 0) +
+              item.brokenQuantity!;
+        }
+      }
+
       // Subtract current items from used quantities since they're not yet saved
       for (var item in _items) {
         usedQuantities[item.product] = (usedQuantities[item.product] ?? 0) -

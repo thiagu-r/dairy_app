@@ -117,37 +117,29 @@
 //     );
 //   }
   
-//   Widget _buildMenuCard(BuildContext context, String title, IconData icon, 
-//       Color color, VoidCallback onTap) {
+//   Widget _buildMenuCard(
+//     BuildContext context,
+//     String title,
+//     IconData icon,
+//     Color color,
+//     VoidCallback onTap,
+//   ) {
 //     return Card(
 //       elevation: 4,
-//       shape: RoundedRectangleBorder(
-//         borderRadius: BorderRadius.circular(16),
-//       ),
+//       margin: EdgeInsets.all(8),
 //       child: InkWell(
 //         onTap: onTap,
-//         borderRadius: BorderRadius.circular(16),
 //         child: Padding(
-//           padding: const EdgeInsets.all(16.0),
+//           padding: EdgeInsets.all(16),
 //           child: Column(
 //             mainAxisAlignment: MainAxisAlignment.center,
 //             children: [
-//               Container(
-//                 padding: EdgeInsets.all(12),
-//                 decoration: BoxDecoration(
-//                   color: color.withOpacity(0.1),
-//                   shape: BoxShape.circle,
-//                 ),
-//                 child: Icon(icon, size: 40, color: color),
-//               ),
-//               SizedBox(height: 12),
+//               Icon(icon, size: 48, color: color),
+//               SizedBox(height: 8),
 //               Text(
 //                 title,
 //                 textAlign: TextAlign.center,
-//                 style: TextStyle(
-//                   fontWeight: FontWeight.bold,
-//                   fontSize: 16,
-//                 ),
+//                 style: Theme.of(context).textTheme.titleMedium,
 //               ),
 //             ],
 //           ),
@@ -182,6 +174,7 @@ import '../providers/network_provider.dart';
 import 'load_orders/load_orders_dashboard.dart';
 import 'delivery_orders/delivery_orders_dashboard.dart';
 import 'public_sales/public_sales_dashboard.dart';
+import 'broken_orders/broken_orders_screen.dart';
 import 'login_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -194,7 +187,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Dairy Delivery'),
+        title: Text('Bharat Dairy Delivery'),
         actions: [
           IconButton(
             icon: Icon(Icons.logout),
@@ -330,7 +323,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   'Broken Orders',
                   Icons.broken_image,
                   Colors.red,
-                  () => _showComingSoonDialog(context),
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => BrokenOrdersScreen(),
+                    ),
+                  ),
                 ),
                 _buildMenuCard(
                   context,
@@ -354,37 +352,29 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
   
-  Widget _buildMenuCard(BuildContext context, String title, IconData icon, 
-      Color color, VoidCallback onTap) {
+  Widget _buildMenuCard(
+    BuildContext context,
+    String title,
+    IconData icon,
+    Color color,
+    VoidCallback onTap,
+  ) {
     return Card(
       elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      margin: EdgeInsets.all(8),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: EdgeInsets.all(16),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Container(
-                padding: EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, size: 40, color: color),
-              ),
-              SizedBox(height: 12),
+              Icon(icon, size: 48, color: color),
+              SizedBox(height: 8),
               Text(
                 title,
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
+                style: Theme.of(context).textTheme.titleMedium,
               ),
             ],
           ),

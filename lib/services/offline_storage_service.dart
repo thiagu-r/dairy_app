@@ -33,6 +33,11 @@ class OfflineStorageService {
     }
   }
 
+  Future<void> updateLoadingOrder(LoadingOrder order) async {
+    final box = await Hive.openBox<LoadingOrder>(loadingOrdersBox);
+    await box.put(order.key, order);
+  }
+
   // Delivery Orders methods
   Future<void> storeDeliveryOrders(List<DeliveryOrder> orders) async {
     final box = await Hive.openBox<DeliveryOrder>(deliveryOrdersBox);

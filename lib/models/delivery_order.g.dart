@@ -103,8 +103,8 @@ class DeliveryOrderItemAdapter extends TypeAdapter<DeliveryOrderItem> {
       product: fields[1] as int,
       productName: fields[2] as String,
       orderedQuantity: fields[3] as String,
-      extraQuantity: fields[4] as String,
-      deliveredQuantity: fields[5] as String,
+      deliveredQuantity: fields[4] as String,
+      brokenQuantity: fields[5] as String,
       unitPrice: fields[6] as String,
       totalPrice: fields[7] as String,
     );
@@ -123,9 +123,9 @@ class DeliveryOrderItemAdapter extends TypeAdapter<DeliveryOrderItem> {
       ..writeByte(3)
       ..write(obj.orderedQuantity)
       ..writeByte(4)
-      ..write(obj.extraQuantity)
-      ..writeByte(5)
       ..write(obj.deliveredQuantity)
+      ..writeByte(5)
+      ..write(obj.brokenQuantity)
       ..writeByte(6)
       ..write(obj.unitPrice)
       ..writeByte(7)

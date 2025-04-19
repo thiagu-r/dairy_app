@@ -147,13 +147,13 @@ class DeliveryOrderItem extends HiveObject {
   final String productName;
 
   @HiveField(3)
-  final String orderedQuantity;
+  String orderedQuantity;
 
   @HiveField(4)
-  String extraQuantity;
+  String deliveredQuantity;
 
   @HiveField(5)
-  String deliveredQuantity;
+  String brokenQuantity;
 
   @HiveField(6)
   final String unitPrice;
@@ -166,8 +166,8 @@ class DeliveryOrderItem extends HiveObject {
     required this.product,
     required this.productName,
     required this.orderedQuantity,
-    required this.extraQuantity,
     required this.deliveredQuantity,
+    this.brokenQuantity = '0.000',
     required this.unitPrice,
     required this.totalPrice,
   });
@@ -184,8 +184,8 @@ class DeliveryOrderItem extends HiveObject {
       product: json['product'] is int ? json['product'] : int.parse(json['product'].toString()),
       productName: json['product_name']?.toString() ?? '',
       orderedQuantity: json['ordered_quantity']?.toString() ?? "0.000",
-      extraQuantity: json['extra_quantity']?.toString() ?? "0.000",
       deliveredQuantity: json['delivered_quantity']?.toString() ?? "0.000",
+      brokenQuantity: json['broken_quantity']?.toString() ?? "0.000",
       unitPrice: json['unit_price']?.toString() ?? "0.00",
       totalPrice: json['total_price']?.toString() ?? "0.00",
     );
@@ -196,8 +196,8 @@ class DeliveryOrderItem extends HiveObject {
     'product': product,
     'product_name': productName,
     'ordered_quantity': orderedQuantity,
-    'extra_quantity': extraQuantity,
     'delivered_quantity': deliveredQuantity,
+    'broken_quantity': brokenQuantity,
     'unit_price': unitPrice,
     'total_price': totalPrice,
   };

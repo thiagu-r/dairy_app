@@ -90,7 +90,10 @@ class LoadingOrderItem extends HiveObject {
   final String returnQuantity;
   
   @HiveField(9)
-  final String? unitPrice; // Add unit price field
+  final String? unitPrice;
+  
+  @HiveField(10)
+  double? brokenQuantity;
 
   LoadingOrderItem({
     required this.id,
@@ -103,6 +106,7 @@ class LoadingOrderItem extends HiveObject {
     required this.totalQuantity,
     required this.returnQuantity,
     this.unitPrice,
+    this.brokenQuantity,
   });
 
   factory LoadingOrderItem.fromJson(Map<String, dynamic> json) {
@@ -116,7 +120,7 @@ class LoadingOrderItem extends HiveObject {
       deliveredQuantity: json['delivered_quantity'],
       totalQuantity: json['total_quantity'],
       returnQuantity: json['return_quantity'],
-      unitPrice: json['unit_price'], // Parse unit price
+      unitPrice: json['unit_price'],
     );
   }
 
