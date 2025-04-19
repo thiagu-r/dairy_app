@@ -28,6 +28,8 @@ class _UpdateDeliveryOrderState extends State<UpdateDeliveryOrder> with WidgetsB
   Map<int, TextEditingController> _quantityControllers = {};
   final _amountCollectedController = TextEditingController();
   final _notesController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -42,6 +44,7 @@ class _UpdateDeliveryOrderState extends State<UpdateDeliveryOrder> with WidgetsB
     _amountCollectedController.dispose();
     _notesController.dispose();
     _quantityControllers.values.forEach((controller) => controller.dispose());
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -113,67 +116,34 @@ class _UpdateDeliveryOrderState extends State<UpdateDeliveryOrder> with WidgetsB
             ? Center(child: CircularProgressIndicator())
             : Column(
                 children: [
+                  // Add search bar
+                  Padding(
+                    padding: EdgeInsets.all(16),
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        labelText: 'Search Products',
+                        prefixIcon: Icon(Icons.search),
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      ),
+                      onChanged: (value) {
+                        setState(() {
+                          _searchQuery = value.toLowerCase();
+                        });
+                      },
+                    ),
+                  ),
                   Expanded(
                     child: ListView(
                       padding: EdgeInsets.all(16),
                       children: [
-                        // Order Items List
                         Text(
                           'Order Items',
                           style: Theme.of(context).textTheme.titleLarge,
                         ),
                         SizedBox(height: 16),
-                        ListView.builder(
-                          shrinkWrap: true,
-                          physics: NeverScrollableScrollPhysics(),
-                          itemCount: _items.length,
-                          itemBuilder: (context, index) {
-                            final item = _items[index];
-                            return Card(
-                              margin: EdgeInsets.only(bottom: 8),
-                              child: Padding(
-                                padding: EdgeInsets.all(16),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      item.productName,
-                                      style: Theme.of(context).textTheme.titleMedium,
-                                    ),
-                                    SizedBox(height: 8),
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: TextField(
-                                            controller: _quantityControllers[item.product],
-                                            decoration: InputDecoration(
-                                              labelText: 'Delivered Quantity',
-                                              helperText: 'Ordered: ${item.orderedQuantity}',
-                                            ),
-                                            keyboardType: TextInputType.number,
-                                          ),
-                                        ),
-                                        SizedBox(width: 8),
-                                        IconButton(
-                                          icon: Icon(Icons.check_circle_outline),
-                                          onPressed: () => _updateItemQuantity(item),
-                                          tooltip: 'Update Quantity',
-                                        ),
-                                        SizedBox(width: 8),
-                                        Text('Available: ${_availableExtras[item.product]?.toStringAsFixed(3)}'),
-                                      ],
-                                    ),
-                                    SizedBox(height: 8),
-                                    Text(
-                                      'Total: Rs.${item.totalPrice}',
-                                      style: TextStyle(fontWeight: FontWeight.bold),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
+                        ..._buildFilteredItemsList(),
                         SizedBox(height: 24),
                         
                         // Payment Details Section
@@ -203,20 +173,68 @@ class _UpdateDeliveryOrderState extends State<UpdateDeliveryOrder> with WidgetsB
                       ],
                     ),
                   ),
-                  Padding(
-                    padding: EdgeInsets.all(16),
-                    child: ElevatedButton(
-                      onPressed: _showAddItemDialog,
-                      child: Text('Add New Item'),
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: Size(double.infinity, 48),
-                      ),
-                    ),
-                  ),
                 ],
               ),
       ),
     );
+  }
+
+  List<Widget> _buildFilteredItemsList() {
+    return _items
+        .where((item) {
+          // Filter by search query
+          final matchesSearch = item.productName.toLowerCase().contains(_searchQuery);
+          
+          // Show item only if it has ordered or delivered quantity
+          final hasQuantity = double.parse(item.orderedQuantity) > 0 || 
+                            double.parse(item.deliveredQuantity) > 0;
+          
+          return matchesSearch && (hasQuantity || _searchQuery.isNotEmpty);
+        })
+        .map((item) => Card(
+              margin: EdgeInsets.only(bottom: 8),
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.productName,
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _quantityControllers[item.product],
+                            decoration: InputDecoration(
+                              labelText: 'Delivered Quantity',
+                              helperText: 'Ordered: ${item.orderedQuantity}',
+                            ),
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        IconButton(
+                          icon: Icon(Icons.check_circle_outline),
+                          onPressed: () => _updateItemQuantity(item),
+                          tooltip: 'Update Quantity',
+                        ),
+                        SizedBox(width: 8),
+                        Text('Available: ${_availableExtras[item.product]?.toStringAsFixed(3)}'),
+                      ],
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'Total: Rs.${item.totalPrice}',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+            ))
+        .toList();
   }
 
   Future<void> _calculateAvailableExtras() async {
