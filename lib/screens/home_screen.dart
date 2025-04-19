@@ -175,6 +175,7 @@ import 'load_orders/load_orders_dashboard.dart';
 import 'delivery_orders/delivery_orders_dashboard.dart';
 import 'public_sales/public_sales_dashboard.dart';
 import 'broken_orders/broken_orders_screen.dart';
+import 'return_orders/return_orders_screen.dart';
 import 'expenses/expenses_dashboard.dart';
 import 'login_screen.dart';
 
@@ -338,7 +339,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   'Returned Orders',
                   Icons.assignment_return,
                   Colors.orange,
-                  () => _showComingSoonDialog(context),
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ReturnOrdersScreen(),
+                    ),
+                  ),
                 ),
                 _buildMenuCard(
                   context,

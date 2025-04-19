@@ -163,44 +163,71 @@ class _AddPublicSaleState extends State<AddPublicSale> with WidgetsBindingObserv
 
         return AlertDialog(
           title: Text('Add Product'),
-          content: StatefulBuilder(
-            builder: (context, setState) {
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  DropdownButton<LoadingOrderItem>(
-                    hint: Text('Select Product'),
-                    value: selectedItem,
-                    items: _loadingOrder?.items
-                        .where((item) => (_availableExtras[item.product] ?? 0) > 0)
-                        .map((item) {
-                      return DropdownMenuItem(
-                        value: item,
-                        child: Text(
-                          '${item.productName} (${_availableExtras[item.product]?.toStringAsFixed(3)} available) - Rs.${item.unitPrice ?? "0"}',
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (item) {
-                      setState(() => selectedItem = item);
-                    },
-                  ),
-                  TextField(
-                    decoration: InputDecoration(labelText: 'Quantity'),
-                    keyboardType: TextInputType.numberWithOptions(decimal: true),
-                    onChanged: (value) => quantity = value,
-                  ),
-                  if (selectedItem != null && quantity.isNotEmpty)
-                    Padding(
-                      padding: EdgeInsets.only(top: 16),
-                      child: Text(
-                        'Total: Rs.${(double.parse(quantity) * double.parse(selectedItem!.unitPrice ?? "0")).toStringAsFixed(2)}',
-                        style: TextStyle(fontWeight: FontWeight.bold),
+          content: SingleChildScrollView(
+            child: StatefulBuilder(
+              builder: (context, setState) {
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    DropdownButtonFormField<LoadingOrderItem>(
+                      decoration: InputDecoration(
+                        labelText: 'Select Product',
+                        border: OutlineInputBorder(),
                       ),
+                      value: selectedItem,
+                      items: _loadingOrder?.items
+                          .where((item) => (_availableExtras[item.product] ?? 0) > 0)
+                          .map((item) {
+                        return DropdownMenuItem(
+                          value: item,
+                          child: Text(
+                            '${item.productName} (${_availableExtras[item.product]?.toStringAsFixed(3)} available)',
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (item) {
+                        setState(() => selectedItem = item);
+                      },
                     ),
-                ],
-              );
-            },
+                    SizedBox(height: 16),
+                    if (selectedItem != null)
+                      Text(
+                        'Unit Price: Rs.${selectedItem!.unitPrice ?? "0"}',
+                        style: TextStyle(fontSize: 14),
+                      ),
+                    SizedBox(height: 16),
+                    TextField(
+                      decoration: InputDecoration(
+                        labelText: 'Quantity',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.numberWithOptions(decimal: true),
+                      onChanged: (value) {
+                        setState(() => quantity = value);
+                      },
+                    ),
+                    SizedBox(height: 16),
+                    if (selectedItem != null && quantity.isNotEmpty)
+                      Container(
+                        padding: EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          'Total: Rs.${(double.parse(quantity) * double.parse(selectedItem!.unitPrice ?? "0")).toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
           ),
           actions: [
             TextButton(
