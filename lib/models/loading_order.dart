@@ -63,49 +63,73 @@ class LoadingOrder extends HiveObject {
 @HiveType(typeId: 2)
 class LoadingOrderItem extends HiveObject {
   @HiveField(0)
-  final int product;
-
+  final int id;
+  
   @HiveField(1)
-  final String productName;
-
+  final int product;
+  
   @HiveField(2)
-  final String totalQuantity;
-
+  final String productName;
+  
   @HiveField(3)
-  final String? unitPrice;
-
+  final String purchaseOrderQuantity;
+  
   @HiveField(4)
   final String loadedQuantity;
-
+  
   @HiveField(5)
-  String remainingQuantity;
+  final String remainingQuantity;
+  
+  @HiveField(6)
+  final String deliveredQuantity;
+  
+  @HiveField(7)
+  final String totalQuantity;
+  
+  @HiveField(8)
+  final String returnQuantity;
+  
+  @HiveField(9)
+  final String? unitPrice; // Add unit price field
 
   LoadingOrderItem({
+    required this.id,
     required this.product,
     required this.productName,
-    required this.totalQuantity,
-    this.unitPrice,
+    required this.purchaseOrderQuantity,
     required this.loadedQuantity,
     required this.remainingQuantity,
+    required this.deliveredQuantity,
+    required this.totalQuantity,
+    required this.returnQuantity,
+    this.unitPrice,
   });
 
   factory LoadingOrderItem.fromJson(Map<String, dynamic> json) {
     return LoadingOrderItem(
-      product: json['product'] is int ? json['product'] : int.parse(json['product'].toString()),
-      productName: json['product_name']?.toString() ?? '',
-      totalQuantity: json['total_quantity']?.toString() ?? "0",
-      unitPrice: json['unit_price']?.toString(),
-      loadedQuantity: json['loaded_quantity']?.toString() ?? "0",
-      remainingQuantity: json['remaining_quantity']?.toString() ?? "0",
+      id: json['id'],
+      product: json['product'],
+      productName: json['product_name'],
+      purchaseOrderQuantity: json['purchase_order_quantity'],
+      loadedQuantity: json['loaded_quantity'],
+      remainingQuantity: json['remaining_quantity'],
+      deliveredQuantity: json['delivered_quantity'],
+      totalQuantity: json['total_quantity'],
+      returnQuantity: json['return_quantity'],
+      unitPrice: json['unit_price'], // Parse unit price
     );
   }
 
   Map<String, dynamic> toJson() => {
+    'id': id,
     'product': product,
     'product_name': productName,
-    'total_quantity': totalQuantity,
-    'unit_price': unitPrice,
+    'purchase_order_quantity': purchaseOrderQuantity,
     'loaded_quantity': loadedQuantity,
     'remaining_quantity': remainingQuantity,
+    'delivered_quantity': deliveredQuantity,
+    'total_quantity': totalQuantity,
+    'return_quantity': returnQuantity,
+    'unit_price': unitPrice,
   };
 }

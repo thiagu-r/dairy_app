@@ -13,7 +13,7 @@ class AddPublicSale extends StatefulWidget {
   _AddPublicSaleState createState() => _AddPublicSaleState();
 }
 
-class _AddPublicSaleState extends State<AddPublicSale> {
+class _AddPublicSaleState extends State<AddPublicSale> with WidgetsBindingObserver {
   final _formKey = GlobalKey<FormState>();
   final _storageService = OfflineStorageService();
   
@@ -33,7 +33,25 @@ class _AddPublicSaleState extends State<AddPublicSale> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadLoadingOrder();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _customerNameController.dispose();
+    _customerPhoneController.dispose();
+    _customerAddressController.dispose();
+    _amountCollectedController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _calculateAvailableQuantities(_loadingOrder!);
+    }
   }
 
   Future<void> _loadLoadingOrder() async {
@@ -66,43 +84,65 @@ class _AddPublicSaleState extends State<AddPublicSale> {
   }
 
   Future<void> _calculateAvailableQuantities(LoadingOrder loadingOrder) async {
-    // Get all delivery orders for this loading order
-    final deliveryOrders = await _storageService.getDeliveryOrdersByDateAndRoute(
-      widget.saleDate,
-      loadingOrder.route,
-    );
+    if (!mounted) return;
 
-    // Get all public sales for this date and route
-    final publicSales = await _storageService.getPublicSalesByDateAndRoute(
-      widget.saleDate,
-      loadingOrder.route,
-    );
+    setState(() => _isLoading = true);
+    try {
+      // Get all delivery orders for this loading order
+      final deliveryOrders = await _storageService.getDeliveryOrdersByDateAndRoute(
+        widget.saleDate,
+        loadingOrder.route,
+      );
 
-    // Calculate used quantities
-    Map<int, double> usedQuantities = {};
-    
-    // Add quantities from delivery orders
-    for (var order in deliveryOrders) {
-      for (var item in order.items) {
-        usedQuantities[item.product] = (usedQuantities[item.product] ?? 0) +
-            double.parse(item.deliveredQuantity);
+      // Get all public sales for this date and route
+      final publicSales = await _storageService.getPublicSalesByDateAndRoute(
+        widget.saleDate,
+        loadingOrder.route,
+      );
+
+      // Calculate used quantities
+      Map<int, double> usedQuantities = {};
+      
+      // Add quantities from delivery orders
+      for (var order in deliveryOrders) {
+        for (var item in order.items) {
+          usedQuantities[item.product] = (usedQuantities[item.product] ?? 0) +
+              double.parse(item.deliveredQuantity);
+        }
       }
-    }
 
-    // Add quantities from public sales
-    for (var sale in publicSales) {
-      for (var item in sale.items) {
-        usedQuantities[item.product] = (usedQuantities[item.product] ?? 0) +
+      // Add quantities from public sales (excluding current items)
+      for (var sale in publicSales) {
+        for (var item in sale.items) {
+          usedQuantities[item.product] = (usedQuantities[item.product] ?? 0) +
+              double.parse(item.quantity);
+        }
+      }
+
+      // Subtract current items from used quantities since they're not yet saved
+      for (var item in _items) {
+        usedQuantities[item.product] = (usedQuantities[item.product] ?? 0) -
             double.parse(item.quantity);
       }
-    }
 
-    // Calculate available quantities
-    _availableExtras = {};
-    for (var loadingItem in loadingOrder.items) {
-      double totalLoaded = double.parse(loadingItem.totalQuantity);
-      double used = usedQuantities[loadingItem.product] ?? 0;
-      _availableExtras[loadingItem.product] = totalLoaded - used;
+      // Calculate available quantities
+      _availableExtras = {};
+      for (var loadingItem in loadingOrder.items) {
+        double totalLoaded = double.parse(loadingItem.totalQuantity);
+        double used = usedQuantities[loadingItem.product] ?? 0;
+        _availableExtras[loadingItem.product] = totalLoaded - used;
+      }
+
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to calculate available quantities: $e')),
+        );
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -259,154 +299,153 @@ class _AddPublicSaleState extends State<AddPublicSale> {
   }
 
   @override
-  void dispose() {
-    _customerNameController.dispose();
-    _customerPhoneController.dispose();
-    _customerAddressController.dispose();
-    _amountCollectedController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('New Public Sale'),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.save),
-            onPressed: _saveSale,
-          ),
-        ],
-      ),
-      body: _isLoading
-          ? Center(child: CircularProgressIndicator())
-          : Form(
-              key: _formKey,
-              child: ListView(
-                padding: EdgeInsets.all(16),
-                children: [
-                  TextFormField(
-                    controller: _customerNameController,
-                    decoration: InputDecoration(
-                      labelText: 'Customer Name (Optional)',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  SizedBox(height: 16),
-                  TextFormField(
-                    controller: _customerPhoneController,
-                    decoration: InputDecoration(
-                      labelText: 'Customer Phone (Optional)',
-                      border: OutlineInputBorder(),
-                    ),
-                    keyboardType: TextInputType.phone,
-                  ),
-                  SizedBox(height: 16),
-                  TextFormField(
-                    controller: _customerAddressController,
-                    decoration: InputDecoration(
-                      labelText: 'Customer Address (Optional)',
-                      border: OutlineInputBorder(),
-                    ),
-                    maxLines: 2,
-                  ),
-                  SizedBox(height: 24),
-                  Text(
-                    'Items',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  SizedBox(height: 8),
-                  ListView.builder(
-                    shrinkWrap: true,
-                    physics: NeverScrollableScrollPhysics(),
-                    itemCount: _items.length,
-                    itemBuilder: (context, index) {
-                      final item = _items[index];
-                      return Card(
-                        child: ListTile(
-                          title: Text(item.productName),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Quantity: ${item.quantity}'),
-                              Text('Unit Price: Rs.${item.unitPrice}'),
-                              Text('Total: Rs.${item.totalPrice}'),
-                            ],
-                          ),
-                          trailing: IconButton(
-                            icon: Icon(Icons.delete),
-                            onPressed: () {
-                              setState(() {
-                                _availableExtras[item.product] = 
-                                    (_availableExtras[item.product] ?? 0) + 
-                                    double.parse(item.quantity);
-                                _items.removeAt(index);
-                                _updateTotalPrice();
-                              });
-                            },
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                  SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: _showAddItemDialog,
-                    child: Text('Add Item'),
-                  ),
-                  SizedBox(height: 24),
-                  Text(
-                    'Payment Details',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  SizedBox(height: 16),
-                  Text(
-                    'Total Price: Rs.$_totalPrice',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  TextFormField(
-                    controller: _amountCollectedController,
-                    decoration: InputDecoration(
-                      labelText: 'Amount Collected',
-                      prefixText: 'Rs.',
-                      border: OutlineInputBorder(),
-                    ),
-                    keyboardType: TextInputType.numberWithOptions(decimal: true),
-                    onChanged: (value) => _updateBalanceAmount(),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Balance Amount: Rs.$_balanceAmount',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: double.parse(_balanceAmount) > 0 ? Colors.red : Colors.green,
-                    ),
-                  ),
-                  SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    value: _paymentMethod,
-                    decoration: InputDecoration(
-                      labelText: 'Payment Method',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: [
-                      DropdownMenuItem(value: 'cash', child: Text('Cash')),
-                      DropdownMenuItem(value: 'online', child: Text('Online')),
-                    ],
-                    onChanged: (value) {
-                      setState(() {
-                        _paymentMethod = value ?? 'cash';
-                      });
-                    },
-                  ),
-                ],
-              ),
+    return WillPopScope(
+      onWillPop: () async {
+        if (_loadingOrder != null) {
+          await _calculateAvailableQuantities(_loadingOrder!);
+        }
+        return true;
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text('New Public Sale'),
+          actions: [
+            IconButton(
+              icon: Icon(Icons.save),
+              onPressed: _saveSale,
             ),
+          ],
+        ),
+        body: _isLoading
+            ? Center(child: CircularProgressIndicator())
+            : Form(
+                key: _formKey,
+                child: ListView(
+                  padding: EdgeInsets.all(16),
+                  children: [
+                    TextFormField(
+                      controller: _customerNameController,
+                      decoration: InputDecoration(
+                        labelText: 'Customer Name (Optional)',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    SizedBox(height: 16),
+                    TextFormField(
+                      controller: _customerPhoneController,
+                      decoration: InputDecoration(
+                        labelText: 'Customer Phone (Optional)',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.phone,
+                    ),
+                    SizedBox(height: 16),
+                    TextFormField(
+                      controller: _customerAddressController,
+                      decoration: InputDecoration(
+                        labelText: 'Customer Address (Optional)',
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLines: 2,
+                    ),
+                    SizedBox(height: 24),
+                    Text(
+                      'Items',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    SizedBox(height: 8),
+                    ListView.builder(
+                      shrinkWrap: true,
+                      physics: NeverScrollableScrollPhysics(),
+                      itemCount: _items.length,
+                      itemBuilder: (context, index) {
+                        final item = _items[index];
+                        return Card(
+                          child: ListTile(
+                            title: Text(item.productName),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Quantity: ${item.quantity}'),
+                                Text('Unit Price: Rs.${item.unitPrice}'),
+                                Text('Total: Rs.${item.totalPrice}'),
+                              ],
+                            ),
+                            trailing: IconButton(
+                              icon: Icon(Icons.delete),
+                              onPressed: () {
+                                setState(() {
+                                  _availableExtras[item.product] = 
+                                      (_availableExtras[item.product] ?? 0) + 
+                                      double.parse(item.quantity);
+                                  _items.removeAt(index);
+                                  _updateTotalPrice();
+                                });
+                              },
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: _showAddItemDialog,
+                      child: Text('Add Item'),
+                    ),
+                    SizedBox(height: 24),
+                    Text(
+                      'Payment Details',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    SizedBox(height: 16),
+                    Text(
+                      'Total Price: Rs.$_totalPrice',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    TextFormField(
+                      controller: _amountCollectedController,
+                      decoration: InputDecoration(
+                        labelText: 'Amount Collected',
+                        prefixText: 'Rs.',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.numberWithOptions(decimal: true),
+                      onChanged: (value) => _updateBalanceAmount(),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'Balance Amount: Rs.$_balanceAmount',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: double.parse(_balanceAmount) > 0 ? Colors.red : Colors.green,
+                      ),
+                    ),
+                    SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      value: _paymentMethod,
+                      decoration: InputDecoration(
+                        labelText: 'Payment Method',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: [
+                        DropdownMenuItem(value: 'cash', child: Text('Cash')),
+                        DropdownMenuItem(value: 'online', child: Text('Online')),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          _paymentMethod = value ?? 'cash';
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+      ),
     );
   }
 }

@@ -69,31 +69,43 @@ class LoadingOrderItemAdapter extends TypeAdapter<LoadingOrderItem> {
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
     return LoadingOrderItem(
-      product: fields[0] as int,
-      productName: fields[1] as String,
-      totalQuantity: fields[2] as String,
-      unitPrice: fields[3] as String?,
+      id: fields[0] as int,
+      product: fields[1] as int,
+      productName: fields[2] as String,
+      purchaseOrderQuantity: fields[3] as String,
       loadedQuantity: fields[4] as String,
       remainingQuantity: fields[5] as String,
+      deliveredQuantity: fields[6] as String,
+      totalQuantity: fields[7] as String,
+      returnQuantity: fields[8] as String,
+      unitPrice: fields[9] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, LoadingOrderItem obj) {
     writer
-      ..writeByte(6)
+      ..writeByte(10)
       ..writeByte(0)
-      ..write(obj.product)
+      ..write(obj.id)
       ..writeByte(1)
-      ..write(obj.productName)
+      ..write(obj.product)
       ..writeByte(2)
-      ..write(obj.totalQuantity)
+      ..write(obj.productName)
       ..writeByte(3)
-      ..write(obj.unitPrice)
+      ..write(obj.purchaseOrderQuantity)
       ..writeByte(4)
       ..write(obj.loadedQuantity)
       ..writeByte(5)
-      ..write(obj.remainingQuantity);
+      ..write(obj.remainingQuantity)
+      ..writeByte(6)
+      ..write(obj.deliveredQuantity)
+      ..writeByte(7)
+      ..write(obj.totalQuantity)
+      ..writeByte(8)
+      ..write(obj.returnQuantity)
+      ..writeByte(9)
+      ..write(obj.unitPrice);
   }
 
   @override

@@ -87,6 +87,52 @@ class _LoadOrdersScreenState extends State<LoadOrdersScreen> {
     final formattedDate = DateFormat('yyyy-MM-dd').format(_selectedDate);
     
     try {
+      // First check if loading order exists
+      final loadingOrderCheck = await _apiService.checkLoadingOrder(
+        _selectedRoute!.id,
+        formattedDate,
+      );
+
+      // Check if loading order exists and has actual order data
+      if (loadingOrderCheck != null && 
+          loadingOrderCheck is! Map<String, dynamic> || 
+          (loadingOrderCheck is Map<String, dynamic> && loadingOrderCheck['exists'] != false)) {
+        // Loading order exists, ask user to store it
+        final shouldStore = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text('Loading Order Exists'),
+            content: Text('A loading order already exists for this route and date. Would you like to sync it to your device?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: Text('Sync'),
+              ),
+            ],
+          ),
+        ) ?? false;
+
+        if (shouldStore) {
+          final loadingOrder = LoadingOrder.fromJson(loadingOrderCheck);
+          await _storageService.storeLoadingOrder(loadingOrder);
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Loading order synced successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+
+          Navigator.pop(context);
+          return;
+        }
+      }
+
+      // If no loading order exists or user cancelled, check purchase order
       final data = await _apiService.checkPurchaseOrder(
         _selectedRoute!.id, 
         formattedDate
@@ -109,12 +155,12 @@ class _LoadOrdersScreenState extends State<LoadOrdersScreen> {
     } catch (e) {
       setState(() {
         _isPurchaseOrderLoading = false;
-        _errorMessage = 'Failed to check purchase order: $e';
+        _errorMessage = 'Failed to check orders: $e';
       });
     }
   }
   
-  Future<void> _createLoadingOrder() async {
+  Future<void> _checkAndCreateLoadingOrder() async {
     if (_formKey.currentState?.validate() != true || _purchaseOrderId == null) {
       return;
     }
@@ -124,28 +170,52 @@ class _LoadOrdersScreenState extends State<LoadOrdersScreen> {
       _errorMessage = '';
     });
 
-    final payload = {
-      "route": _selectedRoute!.id,
-      "loading_date": DateFormat('yyyy-MM-dd').format(_selectedDate),
-      "loading_time": _loadingTimeController.text,
-      "purchase_order_id": _purchaseOrderId,
-      "notes": _notesController.text,
-      "crates": int.tryParse(_cratesController.text) ?? 0,
-    };
-
     try {
+      // First check if loading order exists
+      final loadingOrderCheck = await _apiService.checkLoadingOrder(
+        _selectedRoute!.id,
+        DateFormat('yyyy-MM-dd').format(_selectedDate),
+      );
+
+      if (loadingOrderCheck != null && loadingOrderCheck['exists'] != false) {
+        // Loading order exists, store it locally
+        final loadingOrder = LoadingOrder.fromJson(loadingOrderCheck);
+        await _storageService.storeLoadingOrder(loadingOrder);
+
+        setState(() => _isLoading = false);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Loading order already exists and has been synced'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        Navigator.pop(context);
+        return;
+      }
+
+      // Validate crates input
+      final cratesValue = _cratesController.text.trim();
+      final crates = cratesValue.isEmpty ? 0 : int.tryParse(cratesValue) ?? 0;
+
+      // If no existing loading order, create new one
+      final payload = {
+        "route": _selectedRoute!.id,
+        "loading_date": DateFormat('yyyy-MM-dd').format(_selectedDate),
+        "loading_time": _loadingTimeController.text,
+        "purchase_order_id": _purchaseOrderId,
+        "notes": _notesController.text.trim(),
+        "crates": crates,
+      };
+
       final response = await _apiService.createLoadingOrder(payload);
       
       if (response['success'] == true && response['loading_order'] != null) {
-        // Create LoadingOrder object from response
         final loadingOrder = LoadingOrder.fromJson(response['loading_order']);
-        
-        // Store the order in offline storage
-        await OfflineStorageService().storeLoadingOrder(loadingOrder);
+        await _storageService.storeLoadingOrder(loadingOrder);
 
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -154,14 +224,10 @@ class _LoadOrdersScreenState extends State<LoadOrdersScreen> {
           ),
         );
 
-        // Clear form
-        _notesController.clear();
-        _cratesController.clear();
-        _purchaseOrderData = null;
-        _purchaseOrderId = null;
-
-        // Navigate back to the list
+        _clearForm();
         Navigator.pop(context);
+      } else {
+        throw Exception(response['message'] ?? 'Failed to create loading order');
       }
     } catch (e) {
       setState(() {
@@ -169,6 +235,13 @@ class _LoadOrdersScreenState extends State<LoadOrdersScreen> {
         _errorMessage = 'Failed to create loading order: $e';
       });
     }
+  }
+
+  void _clearForm() {
+    _notesController.clear();
+    _cratesController.clear();
+    _purchaseOrderData = null;
+    _purchaseOrderId = null;
   }
   
   Future<void> _selectDate(BuildContext context) async {
@@ -351,11 +424,15 @@ class _LoadOrdersScreenState extends State<LoadOrdersScreen> {
                             decoration: InputDecoration(
                               labelText: 'Number of Crates',
                               border: OutlineInputBorder(),
+                              hintText: '0',
                             ),
                             keyboardType: TextInputType.number,
                             validator: (value) {
                               if (value == null || value.isEmpty) {
-                                return 'Please enter number of crates';
+                                return null; // Allow empty value, will default to 0
+                              }
+                              if (int.tryParse(value) == null) {
+                                return 'Please enter a valid number';
                               }
                               return null;
                             },
@@ -376,7 +453,7 @@ class _LoadOrdersScreenState extends State<LoadOrdersScreen> {
                           
                           // Submit Button
                           ElevatedButton.icon(
-                            onPressed: _isLoading ? null : _createLoadingOrder,
+                            onPressed: _isLoading ? null : _checkAndCreateLoadingOrder,
                             icon: Icon(Icons.check_circle),
                             label: Text('Create Loading Order'),
                             style: ElevatedButton.styleFrom(

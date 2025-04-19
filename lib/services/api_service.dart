@@ -164,4 +164,26 @@ class ApiService {
       throw Exception('Failed to fetch delivery orders: $e');
     }
   }
+
+  Future<Map<String, dynamic>> checkLoadingOrder(int routeId, String deliveryDate) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.get(
+        Uri.parse('$baseUrl/loading-orders/check-loading-order/?route=$routeId&delivery_date=$deliveryDate'),
+        headers: headers,
+      );
+      
+      print('Check Loading Order Response - Status Code: ${response.statusCode}');
+      print('Check Loading Order Response - Body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        throw Exception('Server returned ${response.statusCode}: ${response.body}');
+      }
+    } catch (e) {
+      print('Error checking loading order: $e');
+      throw Exception('Failed to check loading order: $e');
+    }
+  }
 }

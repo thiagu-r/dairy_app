@@ -17,24 +17,42 @@ class UpdateDeliveryOrder extends StatefulWidget {
   _UpdateDeliveryOrderState createState() => _UpdateDeliveryOrderState();
 }
 
-class _UpdateDeliveryOrderState extends State<UpdateDeliveryOrder> {
-  final OfflineStorageService _storageService = OfflineStorageService();
+class _UpdateDeliveryOrderState extends State<UpdateDeliveryOrder> with WidgetsBindingObserver {
+  final _formKey = GlobalKey<FormState>();
+  final _storageService = OfflineStorageService();
+  bool _isLoading = true;
   late DeliveryOrder _workingDeliveryOrder;
   late List<DeliveryOrderItem> _items;
   late Map<int, LoadingOrderItem> _loadingItems;
-  late Map<int, double> _availableExtras;
-  bool _isLoading = true;
-  
-  // Add a map to store controllers for each item
-  final Map<int, TextEditingController> _quantityControllers = {};
-
-  // Add a controller for amount collected
-  late TextEditingController _amountCollectedController;
+  Map<int, double> _availableExtras = {};
+  Map<int, TextEditingController> _quantityControllers = {};
+  final _amountCollectedController = TextEditingController();
+  final _notesController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    // Create a deep copy of the delivery order
+    WidgetsBinding.instance.addObserver(this);
+    _initializeOrder();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _amountCollectedController.dispose();
+    _notesController.dispose();
+    _quantityControllers.values.forEach((controller) => controller.dispose());
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _calculateAvailableExtras();
+    }
+  }
+
+  Future<void> _initializeOrder() async {
     _workingDeliveryOrder = DeliveryOrder(
       id: widget.deliveryOrder.id,
       orderNumber: widget.deliveryOrder.orderNumber,
@@ -43,16 +61,7 @@ class _UpdateDeliveryOrderState extends State<UpdateDeliveryOrder> {
       routeName: widget.deliveryOrder.routeName,
       sellerName: widget.deliveryOrder.sellerName,
       status: widget.deliveryOrder.status,
-      items: widget.deliveryOrder.items.map((item) => DeliveryOrderItem(
-        id: item.id,
-        product: item.product,
-        productName: item.productName,
-        orderedQuantity: item.orderedQuantity,
-        extraQuantity: item.extraQuantity,
-        deliveredQuantity: item.deliveredQuantity,
-        unitPrice: item.unitPrice,
-        totalPrice: item.totalPrice,
-      )).toList(),
+      items: List.from(widget.deliveryOrder.items),
       seller: widget.deliveryOrder.seller,
       deliveryTime: widget.deliveryOrder.deliveryTime,
       totalPrice: widget.deliveryOrder.totalPrice,
@@ -68,32 +77,151 @@ class _UpdateDeliveryOrderState extends State<UpdateDeliveryOrder> {
     _loadingItems = {
       for (var item in widget.loadingOrder.items) item.product: item
     };
-    _calculateAvailableExtras();
 
-    // Initialize controllers for existing items without listeners
+    // Initialize controllers for existing items
     for (var item in _items) {
       _quantityControllers[item.product] = TextEditingController(
         text: item.deliveredQuantity
       );
     }
 
-    // Initialize amount collected controller
-    _amountCollectedController = TextEditingController(
-      text: _workingDeliveryOrder.amountCollected
-    );
+    _amountCollectedController.text = _workingDeliveryOrder.amountCollected;
+    _notesController.text = _workingDeliveryOrder.notes ?? '';
+
+    await _calculateAvailableExtras();
   }
 
   @override
-  void dispose() {
-    // Clean up controllers
-    for (var controller in _quantityControllers.values) {
-      controller.dispose();
-    }
-    _amountCollectedController.dispose();
-    super.dispose();
+  Widget build(BuildContext context) {
+    return WillPopScope(
+      onWillPop: () async {
+        // Recalculate quantities when returning to this screen
+        await _calculateAvailableExtras();
+        return true;
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text('Update Delivery - ${widget.deliveryOrder.sellerName}'),
+          actions: [
+            IconButton(
+              icon: Icon(Icons.save),
+              onPressed: _saveDeliveryOrder,
+            ),
+          ],
+        ),
+        body: _isLoading
+            ? Center(child: CircularProgressIndicator())
+            : Column(
+                children: [
+                  Expanded(
+                    child: ListView(
+                      padding: EdgeInsets.all(16),
+                      children: [
+                        // Order Items List
+                        Text(
+                          'Order Items',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        SizedBox(height: 16),
+                        ListView.builder(
+                          shrinkWrap: true,
+                          physics: NeverScrollableScrollPhysics(),
+                          itemCount: _items.length,
+                          itemBuilder: (context, index) {
+                            final item = _items[index];
+                            return Card(
+                              margin: EdgeInsets.only(bottom: 8),
+                              child: Padding(
+                                padding: EdgeInsets.all(16),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      item.productName,
+                                      style: Theme.of(context).textTheme.titleMedium,
+                                    ),
+                                    SizedBox(height: 8),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: TextField(
+                                            controller: _quantityControllers[item.product],
+                                            decoration: InputDecoration(
+                                              labelText: 'Delivered Quantity',
+                                              helperText: 'Ordered: ${item.orderedQuantity}',
+                                            ),
+                                            keyboardType: TextInputType.number,
+                                          ),
+                                        ),
+                                        SizedBox(width: 8),
+                                        IconButton(
+                                          icon: Icon(Icons.check_circle_outline),
+                                          onPressed: () => _updateItemQuantity(item),
+                                          tooltip: 'Update Quantity',
+                                        ),
+                                        SizedBox(width: 8),
+                                        Text('Available: ${_availableExtras[item.product]?.toStringAsFixed(3)}'),
+                                      ],
+                                    ),
+                                    SizedBox(height: 8),
+                                    Text(
+                                      'Total: Rs.${item.totalPrice}',
+                                      style: TextStyle(fontWeight: FontWeight.bold),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                        SizedBox(height: 24),
+                        
+                        // Payment Details Section
+                        Padding(
+                          padding: EdgeInsets.all(16),
+                          child: _buildPaymentDetails(),
+                        ),
+                        
+                        // Payment Method
+                        DropdownButtonFormField<String>(
+                          value: widget.deliveryOrder.paymentMethod,
+                          decoration: InputDecoration(
+                            labelText: 'Payment Method',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: [
+                            DropdownMenuItem(value: 'cash', child: Text('Cash')),
+                            DropdownMenuItem(value: 'credit', child: Text('Credit')),
+                            DropdownMenuItem(value: 'bank', child: Text('Bank Transfer')),
+                          ],
+                          onChanged: (value) {
+                            setState(() {
+                              widget.deliveryOrder.paymentMethod = value ?? 'cash';
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.all(16),
+                    child: ElevatedButton(
+                      onPressed: _showAddItemDialog,
+                      child: Text('Add New Item'),
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: Size(double.infinity, 48),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+      ),
+    );
   }
 
   Future<void> _calculateAvailableExtras() async {
+    if (!mounted) return;
+
     setState(() => _isLoading = true);
     
     try {
@@ -103,13 +231,37 @@ class _UpdateDeliveryOrderState extends State<UpdateDeliveryOrder> {
         widget.deliveryOrder.route,
       );
 
+      // Get all public sales for this date and route
+      final publicSales = await _storageService.getPublicSalesByDateAndRoute(
+        widget.deliveryOrder.deliveryDate,
+        widget.deliveryOrder.route,
+      );
+
       // Calculate used quantities for each product
       Map<int, double> usedQuantities = {};
+      
+      // Add quantities from all other delivery orders (excluding current one)
       for (var order in allDeliveryOrders) {
-        for (var item in order.items) {
-          usedQuantities[item.product] = (usedQuantities[item.product] ?? 0) +
-              double.parse(item.deliveredQuantity);
+        if (order.id != widget.deliveryOrder.id) {
+          for (var item in order.items) {
+            usedQuantities[item.product] = (usedQuantities[item.product] ?? 0) +
+                double.parse(item.deliveredQuantity);
+          }
         }
+      }
+
+      // Add quantities from public sales
+      for (var sale in publicSales) {
+        for (var item in sale.items) {
+          usedQuantities[item.product] = (usedQuantities[item.product] ?? 0) +
+              double.parse(item.quantity);
+        }
+      }
+
+      // Add current working quantities
+      for (var item in _items) {
+        usedQuantities[item.product] = (usedQuantities[item.product] ?? 0) +
+            double.parse(item.deliveredQuantity);
       }
 
       // Calculate available extras
@@ -120,12 +272,16 @@ class _UpdateDeliveryOrderState extends State<UpdateDeliveryOrder> {
         _availableExtras[loadingItem.product] = totalLoaded - used;
       }
 
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to calculate available quantities: $e')),
-      );
-      setState(() => _isLoading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to calculate available quantities: $e')),
+        );
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -486,154 +642,6 @@ class _UpdateDeliveryOrderState extends State<UpdateDeliveryOrder> {
           ),
         ),
       ],
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
-        // Show confirmation dialog if there are unsaved changes
-        final result = await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: Text('Unsaved Changes'),
-            content: Text('Do you want to save your changes?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                child: Text('Discard'),
-              ),
-              TextButton(
-                onPressed: () async {
-                  await _saveDeliveryOrder();
-                  Navigator.of(context).pop(false);
-                },
-                child: Text('Save'),
-              ),
-            ],
-          ),
-        );
-        
-        return result ?? false;
-      },
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text('Update Delivery - ${widget.deliveryOrder.sellerName}'),
-          actions: [
-            IconButton(
-              icon: Icon(Icons.save),
-              onPressed: _saveDeliveryOrder,
-            ),
-          ],
-        ),
-        body: _isLoading
-            ? Center(child: CircularProgressIndicator())
-            : Column(
-                children: [
-                  Expanded(
-                    child: ListView(
-                      padding: EdgeInsets.all(16),
-                      children: [
-                        // Order Items List
-                        Text(
-                          'Order Items',
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                        SizedBox(height: 16),
-                        ListView.builder(
-                          shrinkWrap: true,
-                          physics: NeverScrollableScrollPhysics(),
-                          itemCount: _items.length,
-                          itemBuilder: (context, index) {
-                            final item = _items[index];
-                            return Card(
-                              margin: EdgeInsets.only(bottom: 8),
-                              child: Padding(
-                                padding: EdgeInsets.all(16),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      item.productName,
-                                      style: Theme.of(context).textTheme.titleMedium,
-                                    ),
-                                    SizedBox(height: 8),
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: TextField(
-                                            controller: _quantityControllers[item.product],
-                                            decoration: InputDecoration(
-                                              labelText: 'Delivered Quantity',
-                                              helperText: 'Ordered: ${item.orderedQuantity}',
-                                            ),
-                                            keyboardType: TextInputType.number,
-                                          ),
-                                        ),
-                                        SizedBox(width: 8),
-                                        IconButton(
-                                          icon: Icon(Icons.check_circle_outline),
-                                          onPressed: () => _updateItemQuantity(item),
-                                          tooltip: 'Update Quantity',
-                                        ),
-                                        SizedBox(width: 8),
-                                        Text('Available: ${_availableExtras[item.product]?.toStringAsFixed(3)}'),
-                                      ],
-                                    ),
-                                    SizedBox(height: 8),
-                                    Text(
-                                      'Total: Rs.${item.totalPrice}',
-                                      style: TextStyle(fontWeight: FontWeight.bold),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                        SizedBox(height: 24),
-                        
-                        // Payment Details Section
-                        Padding(
-                          padding: EdgeInsets.all(16),
-                          child: _buildPaymentDetails(),
-                        ),
-                        
-                        // Payment Method
-                        DropdownButtonFormField<String>(
-                          value: widget.deliveryOrder.paymentMethod,
-                          decoration: InputDecoration(
-                            labelText: 'Payment Method',
-                            border: OutlineInputBorder(),
-                          ),
-                          items: [
-                            DropdownMenuItem(value: 'cash', child: Text('Cash')),
-                            DropdownMenuItem(value: 'credit', child: Text('Credit')),
-                            DropdownMenuItem(value: 'bank', child: Text('Bank Transfer')),
-                          ],
-                          onChanged: (value) {
-                            setState(() {
-                              widget.deliveryOrder.paymentMethod = value ?? 'cash';
-                            });
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.all(16),
-                    child: ElevatedButton(
-                      onPressed: _showAddItemDialog,
-                      child: Text('Add New Item'),
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: Size(double.infinity, 48),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-      ),
     );
   }
 }
