@@ -34,13 +34,16 @@ class DeliveryOrderAdapter extends TypeAdapter<DeliveryOrder> {
       paymentMethod: fields[14] as String,
       notes: fields[15] as String?,
       syncStatus: fields[16] as String,
+      actualDeliveryDate: fields[17] as String?,
+      actualDeliveryTime: fields[18] as String?,
+      localId: fields[19] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, DeliveryOrder obj) {
     writer
-      ..writeByte(17)
+      ..writeByte(20)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -74,7 +77,13 @@ class DeliveryOrderAdapter extends TypeAdapter<DeliveryOrder> {
       ..writeByte(15)
       ..write(obj.notes)
       ..writeByte(16)
-      ..write(obj.syncStatus);
+      ..write(obj.syncStatus)
+      ..writeByte(17)
+      ..write(obj.actualDeliveryDate)
+      ..writeByte(18)
+      ..write(obj.actualDeliveryTime)
+      ..writeByte(19)
+      ..write(obj.localId);
   }
 
   @override
@@ -104,7 +113,7 @@ class DeliveryOrderItemAdapter extends TypeAdapter<DeliveryOrderItem> {
       productName: fields[2] as String,
       orderedQuantity: fields[3] as String,
       deliveredQuantity: fields[4] as String,
-      brokenQuantity: fields[5] as String,
+      extraQuantity: fields[5] as String,
       unitPrice: fields[6] as String,
       totalPrice: fields[7] as String,
     );
@@ -125,7 +134,7 @@ class DeliveryOrderItemAdapter extends TypeAdapter<DeliveryOrderItem> {
       ..writeByte(4)
       ..write(obj.deliveredQuantity)
       ..writeByte(5)
-      ..write(obj.brokenQuantity)
+      ..write(obj.extraQuantity)
       ..writeByte(6)
       ..write(obj.unitPrice)
       ..writeByte(7)

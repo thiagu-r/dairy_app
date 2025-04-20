@@ -186,4 +186,72 @@ class ApiService {
       throw Exception('Failed to check loading order: $e');
     }
   }
+
+  Future<Map<String, dynamic>> syncData(Map<String, dynamic> payload) async {
+    try {
+      final headers = await _getHeaders();
+      
+      // Update delivery orders status to completed
+      if (payload['data']['delivery_orders'] != null) {
+        payload['data']['delivery_orders'] = payload['data']['delivery_orders'].map((order) {
+          order['status'] = 'completed';
+          return order;
+        }).toList();
+      }
+      
+      // Print detailed sync payload with counts
+      print('\n=== SYNC PAYLOAD DETAILS ===');
+      print('Public Sales: ${payload['data']['public_sales']?.length ?? 0} items');
+      print('Delivery Orders: ${payload['data']['delivery_orders']?.length ?? 0} items');
+      print('Broken Orders: ${payload['data']['broken_orders']?.length ?? 0} items');
+      print('Return Orders: ${payload['data']['return_orders']?.length ?? 0} items');
+      print('Expenses: ${payload['data']['expenses']?.length ?? 0} items');
+      print('Denominations: ${payload['data']['denominations']?.length ?? 0} items');
+      
+      // Add 1 second delay
+      await Future.delayed(Duration(seconds: 1));
+      
+      // Print full payload in chunks for better readability
+      print('\n=== FULL PAYLOAD (START) ===');
+      final encodedPayload = json.encode(payload);
+      const int chunkSize = 1000;
+      
+      for (var i = 0; i < encodedPayload.length; i += chunkSize) {
+        print(encodedPayload.substring(
+          i, 
+          i + chunkSize < encodedPayload.length ? i + chunkSize : encodedPayload.length
+        ));
+      }
+      print('=== FULL PAYLOAD (END) ===\n');
+      
+      final response = await http.post(
+        Uri.parse('$baseUrl${ApiConfig.sync}'),
+        headers: headers,
+        body: json.encode(payload),
+      );
+
+      print('Sync Response Status: ${response.statusCode}');
+      print('Sync Response Body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        return {
+          'success': true,
+          'data': responseData,
+        };
+      } else {
+        final errorData = json.decode(response.body);
+        return {
+          'success': false,
+          'message': errorData['detail'] ?? 'Sync failed with status ${response.statusCode}',
+        };
+      }
+    } catch (e) {
+      print('Sync error: $e');
+      return {
+        'success': false,
+        'message': 'Network error: $e',
+      };
+    }
+  }
 }

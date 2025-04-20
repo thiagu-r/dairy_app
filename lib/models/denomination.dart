@@ -2,7 +2,7 @@ import 'package:hive/hive.dart';
 
 part 'denomination.g.dart';
 
-@HiveType(typeId: 11)  // Changed from 6 to 11 to avoid conflict
+@HiveType(typeId: 11)
 class Denomination extends HiveObject {
   @HiveField(0)
   final String date;
@@ -40,6 +40,12 @@ class Denomination extends HiveObject {
   @HiveField(11)
   final double difference;
 
+  @HiveField(12)
+  final String localId;
+
+  @HiveField(13)
+  String syncStatus;
+
   Denomination({
     required this.date,
     required this.note500,
@@ -53,5 +59,34 @@ class Denomination extends HiveObject {
     required this.totalExpenses,
     required this.denominationTotal,
     required this.difference,
-  });
+    String? localId,
+    this.syncStatus = 'pending',
+  }) : this.localId = localId ?? 'mobile-den-${DateTime.now().millisecondsSinceEpoch}';
+
+  List<Map<String, dynamic>> toJson() {
+    List<Map<String, dynamic>> denominations = [];
+    
+    if (note500 > 0) {
+      denominations.add({
+        'id': null,
+        'denomination': 500,
+        'count': note500,
+        'total_amount': (500 * note500).toStringAsFixed(2),
+        'local_id': '${localId}-500',
+      });
+    }
+    // Add similar blocks for other denominations
+    if (note200 > 0) {
+      denominations.add({
+        'id': null,
+        'denomination': 200,
+        'count': note200,
+        'total_amount': (200 * note200).toStringAsFixed(2),
+        'local_id': '${localId}-200',
+      });
+    }
+    // Continue for other denominations...
+
+    return denominations;
+  }
 }

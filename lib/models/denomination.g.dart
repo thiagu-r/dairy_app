@@ -29,13 +29,15 @@ class DenominationAdapter extends TypeAdapter<Denomination> {
       totalExpenses: fields[9] as double,
       denominationTotal: fields[10] as double,
       difference: fields[11] as double,
+      localId: fields[12] as String?,
+      syncStatus: fields[13] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, Denomination obj) {
     writer
-      ..writeByte(12)
+      ..writeByte(14)
       ..writeByte(0)
       ..write(obj.date)
       ..writeByte(1)
@@ -59,7 +61,11 @@ class DenominationAdapter extends TypeAdapter<Denomination> {
       ..writeByte(10)
       ..write(obj.denominationTotal)
       ..writeByte(11)
-      ..write(obj.difference);
+      ..write(obj.difference)
+      ..writeByte(12)
+      ..write(obj.localId)
+      ..writeByte(13)
+      ..write(obj.syncStatus);
   }
 
   @override

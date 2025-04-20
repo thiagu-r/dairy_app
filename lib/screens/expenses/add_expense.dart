@@ -5,11 +5,11 @@ import '../../services/offline_storage_service.dart';
 
 class AddExpense extends StatefulWidget {
   final String date;
-  final int? routeId;  // Make routeId optional
+  final int? routeId;
 
   AddExpense({
     required this.date,
-    this.routeId,  // Optional parameter
+    this.routeId,
   });
 
   @override
@@ -75,14 +75,14 @@ class _AddExpenseState extends State<AddExpense> {
 
     try {
       final expense = Expense(
-        id: DateTime.now().millisecondsSinceEpoch,
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
         date: widget.date,
-        expenseType: _selectedExpenseType.toString().split('.').last,
         amount: double.parse(_amountController.text),
         description: _descriptionController.text.isEmpty 
             ? null 
             : _descriptionController.text,
         route: routeId,
+        expenseType: _selectedExpenseType,
       );
 
       await _storageService.addExpense(expense);

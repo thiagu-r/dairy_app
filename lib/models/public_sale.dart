@@ -41,7 +41,16 @@ class PublicSale extends HiveObject {
   final List<PublicSaleItem> items;
 
   @HiveField(12)
-  String syncStatus = 'pending';
+  String syncStatus;
+
+  @HiveField(13)
+  final String localId;
+
+  @HiveField(14)
+  final String status;
+
+  @HiveField(15)
+  final String? notes;
 
   PublicSale({
     required this.id,
@@ -56,7 +65,29 @@ class PublicSale extends HiveObject {
     required this.amountCollected,
     required this.balanceAmount,
     required this.items,
-  });
+    this.syncStatus = 'pending',
+    String? localId,
+    this.status = 'completed',
+    this.notes,
+  }) : this.localId = localId ?? 'mobile-ps-${DateTime.now().millisecondsSinceEpoch}';
+
+  Map<String, dynamic> toJson() => {
+    'id': null,
+    'route': route,
+    'sale_date': saleDate,
+    'sale_time': saleTime,
+    'payment_method': paymentMethod,
+    'customer_name': customerName,
+    'customer_phone': customerPhone,
+    'customer_address': customerAddress,
+    'total_price': totalPrice,
+    'amount_collected': amountCollected,
+    'balance_amount': balanceAmount,
+    'status': status,
+    'notes': notes,
+    'local_id': localId,
+    'items': items.map((item) => item.toJson()).toList(),
+  };
 }
 
 @HiveType(typeId: 7)
@@ -87,4 +118,13 @@ class PublicSaleItem extends HiveObject {
     required this.unitPrice,
     required this.totalPrice,
   });
+
+  Map<String, dynamic> toJson() => {
+    'id': null,
+    'product': product,
+    'product_name': productName,
+    'quantity': quantity,
+    'unit_price': unitPrice,
+    'total_price': totalPrice,
+  };
 }

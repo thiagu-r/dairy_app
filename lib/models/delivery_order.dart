@@ -55,6 +55,15 @@ class DeliveryOrder extends HiveObject {
   @HiveField(16)
   String syncStatus;
 
+  @HiveField(17)
+  String? actualDeliveryDate;
+
+  @HiveField(18)
+  String? actualDeliveryTime;
+
+  @HiveField(19)
+  String localId;
+
   DeliveryOrder({
     required this.id,
     required this.orderNumber,
@@ -73,7 +82,10 @@ class DeliveryOrder extends HiveObject {
     this.paymentMethod = "cash",
     this.notes,
     this.syncStatus = "pending",
-  });
+    this.actualDeliveryDate,
+    this.actualDeliveryTime,
+    String? localId,
+  }) : this.localId = localId ?? 'mobile-do-${DateTime.now().millisecondsSinceEpoch}';
 
   void updateTotalPrice() {
     double total = 0.0;
@@ -115,7 +127,7 @@ class DeliveryOrder extends HiveObject {
   }
 
   Map<String, dynamic> toJson() => {
-    'id': id,
+    'id': null,
     'order_number': orderNumber,
     'delivery_date': deliveryDate,
     'route': route,
@@ -131,6 +143,9 @@ class DeliveryOrder extends HiveObject {
     'payment_method': paymentMethod,
     'notes': notes,
     'sync_status': syncStatus,
+    'actual_delivery_date': actualDeliveryDate ?? deliveryDate,
+    'actual_delivery_time': actualDeliveryTime ?? deliveryTime,
+    'local_id': localId,
     'items': items.map((item) => item.toJson()).toList(),
   };
 }
@@ -153,7 +168,7 @@ class DeliveryOrderItem extends HiveObject {
   String deliveredQuantity;
 
   @HiveField(5)
-  String brokenQuantity;
+  String extraQuantity;
 
   @HiveField(6)
   final String unitPrice;
@@ -167,7 +182,7 @@ class DeliveryOrderItem extends HiveObject {
     required this.productName,
     required this.orderedQuantity,
     required this.deliveredQuantity,
-    this.brokenQuantity = '0.000',
+    this.extraQuantity = '0.000',
     required this.unitPrice,
     required this.totalPrice,
   });
@@ -185,7 +200,7 @@ class DeliveryOrderItem extends HiveObject {
       productName: json['product_name']?.toString() ?? '',
       orderedQuantity: json['ordered_quantity']?.toString() ?? "0.000",
       deliveredQuantity: json['delivered_quantity']?.toString() ?? "0.000",
-      brokenQuantity: json['broken_quantity']?.toString() ?? "0.000",
+      extraQuantity: json['extra_quantity']?.toString() ?? "0.000",
       unitPrice: json['unit_price']?.toString() ?? "0.00",
       totalPrice: json['total_price']?.toString() ?? "0.00",
     );
@@ -196,8 +211,8 @@ class DeliveryOrderItem extends HiveObject {
     'product': product,
     'product_name': productName,
     'ordered_quantity': orderedQuantity,
+    'extra_quantity': extraQuantity,
     'delivered_quantity': deliveredQuantity,
-    'broken_quantity': brokenQuantity,
     'unit_price': unitPrice,
     'total_price': totalPrice,
   };

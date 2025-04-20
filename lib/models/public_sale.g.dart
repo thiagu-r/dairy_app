@@ -29,13 +29,17 @@ class PublicSaleAdapter extends TypeAdapter<PublicSale> {
       amountCollected: fields[9] as String,
       balanceAmount: fields[10] as String,
       items: (fields[11] as List).cast<PublicSaleItem>(),
-    )..syncStatus = fields[12] as String;
+      syncStatus: fields[12] as String,
+      localId: fields[13] as String?,
+      status: fields[14] as String,
+      notes: fields[15] as String?,
+    );
   }
 
   @override
   void write(BinaryWriter writer, PublicSale obj) {
     writer
-      ..writeByte(13)
+      ..writeByte(16)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -61,7 +65,13 @@ class PublicSaleAdapter extends TypeAdapter<PublicSale> {
       ..writeByte(11)
       ..write(obj.items)
       ..writeByte(12)
-      ..write(obj.syncStatus);
+      ..write(obj.syncStatus)
+      ..writeByte(13)
+      ..write(obj.localId)
+      ..writeByte(14)
+      ..write(obj.status)
+      ..writeByte(15)
+      ..write(obj.notes);
   }
 
   @override

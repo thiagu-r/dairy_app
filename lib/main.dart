@@ -14,6 +14,8 @@ import 'models/public_sale.dart';
 import 'models/expense.dart';
 import 'models/route.dart' as route_model;
 import 'models/denomination.dart';
+import 'models/broken_order.dart';
+import 'models/return_order.dart';
 import 'providers/auth_provider.dart';
 import 'providers/network_provider.dart';
 import 'screens/splash_screen.dart';
@@ -61,6 +63,24 @@ void main() async {
   }
   if (!Hive.isAdapterRegistered(11)) {  // Changed from 6 to 11
     Hive.registerAdapter(DenominationAdapter());
+  }
+  if (!Hive.isAdapterRegistered(12)) {
+    Hive.registerAdapter(BrokenOrderAdapter());
+  }
+  if (!Hive.isAdapterRegistered(13)) {
+    Hive.registerAdapter(BrokenOrderItemAdapter());
+  }
+  if (!Hive.isAdapterRegistered(14)) {
+    Hive.registerAdapter(ReturnOrderAdapter());
+  }
+  if (!Hive.isAdapterRegistered(15)) {
+    Hive.registerAdapter(ReturnOrderItemAdapter());
+  }
+  if (!Hive.isAdapterRegistered(16)) {
+    Hive.registerAdapter(ExpenseAdapter());
+  }
+  if (!Hive.isAdapterRegistered(17)) {
+    Hive.registerAdapter(ExpenseTypeAdapter());
   }
   
   // Clear existing boxes to avoid type conflicts
