@@ -155,19 +155,19 @@ class _UpdateDeliveryOrderState extends State<UpdateDeliveryOrder> with WidgetsB
                         
                         // Payment Method
                         DropdownButtonFormField<String>(
-                          value: widget.deliveryOrder.paymentMethod,
-                          decoration: InputDecoration(
+                          value: _workingDeliveryOrder.paymentMethod,  // Changed from widget.deliveryOrder to _workingDeliveryOrder
+                          decoration: const InputDecoration(
                             labelText: 'Payment Method',
                             border: OutlineInputBorder(),
                           ),
-                          items: [
+                          items: const [
                             DropdownMenuItem(value: 'cash', child: Text('Cash')),
                             DropdownMenuItem(value: 'credit', child: Text('Credit')),
                             DropdownMenuItem(value: 'bank', child: Text('Bank Transfer')),
                           ],
                           onChanged: (value) {
                             setState(() {
-                              widget.deliveryOrder.paymentMethod = value ?? 'cash';
+                              _workingDeliveryOrder.paymentMethod = value ?? 'cash';  // Update _workingDeliveryOrder instead
                             });
                           },
                         ),

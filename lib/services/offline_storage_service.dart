@@ -4,6 +4,7 @@ import '../models/delivery_order.dart';
 import '../models/public_sale.dart';
 import '../models/expense.dart';
 import '../models/route.dart' as route_model;
+import '../models/denomination.dart';
 
 class OfflineStorageService {
   static const String loadingOrdersBox = 'loadingOrders';
@@ -11,6 +12,7 @@ class OfflineStorageService {
   static const String publicSalesBox = 'publicSales';
   static const String expensesBox = 'expenses';
   static const String routesBox = 'routes';
+  static const String denominationsBox = 'denominations';
 
   // Routes methods
   Future<void> addRoute(route_model.Route route) async {
@@ -145,5 +147,24 @@ class OfflineStorageService {
     return box.values
         .where((expense) => expense.date == date && expense.route == route)
         .toList();
+  }
+
+  Future<void> saveDenomination(Denomination denomination) async {
+    final box = await Hive.openBox<Denomination>(denominationsBox);
+    // Remove existing denomination for the same date if exists
+    final existingDenominations = box.values.where((d) => d.date == denomination.date);
+    for (var d in existingDenominations) {
+      await box.delete(d.key);
+    }
+    await box.add(denomination);
+  }
+
+  Future<Denomination?> getDenominationByDate(String date) async {
+    final box = await Hive.openBox<Denomination>(denominationsBox);
+    try {
+      return box.values.firstWhere((d) => d.date == date);
+    } catch (e) {
+      return null;
+    }
   }
 }

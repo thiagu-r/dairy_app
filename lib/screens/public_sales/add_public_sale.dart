@@ -155,18 +155,18 @@ class _AddPublicSaleState extends State<AddPublicSale> with WidgetsBindingObserv
   }
 
   void _showAddItemDialog() {
-    showDialog(
+    showDialog<void>(
       context: context,
-      builder: (context) {
+      builder: (BuildContext dialogContext) {
         LoadingOrderItem? selectedItem;
         String quantity = '';
 
-        return AlertDialog(
-          title: Text('Add Product'),
-          content: SingleChildScrollView(
-            child: StatefulBuilder(
-              builder: (context, setState) {
-                return Column(
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setDialogState) {
+            return AlertDialog(
+              title: Text('Add Product'),
+              content: SingleChildScrollView(
+                child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -178,16 +178,17 @@ class _AddPublicSaleState extends State<AddPublicSale> with WidgetsBindingObserv
                       value: selectedItem,
                       items: _loadingOrder?.items
                           .where((item) => (_availableExtras[item.product] ?? 0) > 0)
-                          .map((item) {
-                        return DropdownMenuItem(
-                          value: item,
-                          child: Text(
-                            '${item.productName} (${_availableExtras[item.product]?.toStringAsFixed(3)} available)',
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: (item) {
-                        setState(() => selectedItem = item);
+                          .map((item) => DropdownMenuItem(
+                                value: item,
+                                child: Text(
+                                  '${item.productName} (${_availableExtras[item.product]?.toStringAsFixed(3)} available)',
+                                ),
+                              ))
+                          .toList(),
+                      onChanged: (LoadingOrderItem? value) {
+                        setDialogState(() {
+                          selectedItem = value;
+                        });
                       },
                     ),
                     SizedBox(height: 16),
@@ -203,8 +204,10 @@ class _AddPublicSaleState extends State<AddPublicSale> with WidgetsBindingObserv
                         border: OutlineInputBorder(),
                       ),
                       keyboardType: TextInputType.numberWithOptions(decimal: true),
-                      onChanged: (value) {
-                        setState(() => quantity = value);
+                      onChanged: (String value) {
+                        setDialogState(() {
+                          quantity = value;
+                        });
                       },
                     ),
                     SizedBox(height: 16),
@@ -216,7 +219,7 @@ class _AddPublicSaleState extends State<AddPublicSale> with WidgetsBindingObserv
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          'Total: Rs.${(double.parse(quantity) * double.parse(selectedItem!.unitPrice ?? "0")).toStringAsFixed(2)}',
+                          'Total: Rs.${_calculateItemTotal(selectedItem!, quantity)}',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
@@ -225,50 +228,70 @@ class _AddPublicSaleState extends State<AddPublicSale> with WidgetsBindingObserv
                         ),
                       ),
                   ],
-                );
-              },
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () {
-                if (selectedItem != null && quantity.isNotEmpty) {
-                  double qty = double.parse(quantity);
-                  double available = _availableExtras[selectedItem!.product] ?? 0;
-                  String unitPrice = selectedItem!.unitPrice ?? "0";
-                  
-                  if (qty > available) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Not enough stock available')),
-                    );
-                    return;
-                  }
-
-                  setState(() {
-                    _items.add(PublicSaleItem(
-                      id: 0,
-                      product: selectedItem!.product,
-                      productName: selectedItem!.productName,
-                      quantity: quantity,
-                      unitPrice: unitPrice,
-                      totalPrice: (qty * double.parse(unitPrice)).toStringAsFixed(2),
-                    ));
-                    _availableExtras[selectedItem!.product] = available - qty;
-                    _updateTotalPrice();
-                  });
-                  Navigator.pop(context);
-                }
-              },
-              child: Text('Add'),
-            ),
-          ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    if (selectedItem != null && quantity.isNotEmpty) {
+                      _addItemToSale(selectedItem!, quantity);
+                      Navigator.pop(context);
+                    }
+                  },
+                  child: Text('Add'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
+  }
+
+  String _calculateItemTotal(LoadingOrderItem item, String quantity) {
+    try {
+      final qty = double.parse(quantity);
+      final price = double.parse(item.unitPrice ?? "0");
+      return (qty * price).toStringAsFixed(2);
+    } catch (e) {
+      return "0.00";
+    }
+  }
+
+  void _addItemToSale(LoadingOrderItem selectedItem, String quantity) {
+    try {
+      double qty = double.parse(quantity);
+      double available = _availableExtras[selectedItem.product] ?? 0;
+      String unitPrice = selectedItem.unitPrice ?? "0";
+      
+      if (qty > available) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Not enough stock available')),
+        );
+        return;
+      }
+
+      setState(() {
+        _items.add(PublicSaleItem(
+          id: 0,
+          product: selectedItem.product,
+          productName: selectedItem.productName,
+          quantity: quantity,
+          unitPrice: unitPrice,
+          totalPrice: _calculateItemTotal(selectedItem, quantity),
+        ));
+        _availableExtras[selectedItem.product] = available - qty;
+        _updateTotalPrice();
+      });
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Invalid quantity entered')),
+      );
+    }
   }
 
   void _updateTotalPrice() {

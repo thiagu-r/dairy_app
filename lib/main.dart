@@ -1,8 +1,9 @@
 // lib/main.dart
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
@@ -12,6 +13,7 @@ import 'models/delivery_order.dart';
 import 'models/public_sale.dart';
 import 'models/expense.dart';
 import 'models/route.dart' as route_model;
+import 'models/denomination.dart';
 import 'providers/auth_provider.dart';
 import 'providers/network_provider.dart';
 import 'screens/splash_screen.dart';
@@ -57,12 +59,16 @@ void main() async {
   if (!Hive.isAdapterRegistered(9)) {
     Hive.registerAdapter(route_model.RouteAdapter());
   }
+  if (!Hive.isAdapterRegistered(11)) {  // Changed from 6 to 11
+    Hive.registerAdapter(DenominationAdapter());
+  }
   
   // Clear existing boxes to avoid type conflicts
   await Hive.deleteBoxFromDisk('loadingOrders');
   await Hive.deleteBoxFromDisk('deliveryOrders');
   await Hive.deleteBoxFromDisk('publicSales');
   await Hive.deleteBoxFromDisk('expenses');
+  await Hive.deleteBoxFromDisk('denominations');
   
   // Open Hive boxes
   await Future.wait([
@@ -76,6 +82,7 @@ void main() async {
     Hive.openBox<PublicSale>('publicSales'),
     Hive.openBox<Expense>('expenses'),
     Hive.openBox<route_model.Route>('routes'),
+    Hive.openBox<Denomination>('denominations'),
   ]);
   
   runApp(MyApp());
