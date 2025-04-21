@@ -5,6 +5,7 @@ import '../models/public_sale.dart';
 import '../models/expense.dart';
 import '../models/route.dart' as route_model;
 import '../models/denomination.dart';
+import '../models/broken_order.dart';
 
 class OfflineStorageService {
   static const String loadingOrdersBox = 'loadingOrders';
@@ -166,5 +167,22 @@ class OfflineStorageService {
     } catch (e) {
       return null;
     }
+  }
+
+  Future<Box<BrokenOrder>> _getBrokenOrdersBox() async {
+    if (!Hive.isBoxOpen('brokenOrders')) {
+      return await Hive.openBox<BrokenOrder>('brokenOrders');
+    }
+    return Hive.box<BrokenOrder>('brokenOrders');
+  }
+
+  Future<void> saveBrokenOrder(BrokenOrder brokenOrder) async {
+    final box = await _getBrokenOrdersBox();
+    await box.put(brokenOrder.id, brokenOrder);
+  }
+
+  Future<List<BrokenOrder>> getBrokenOrders() async {
+    final box = await _getBrokenOrdersBox();
+    return box.values.toList();
   }
 }

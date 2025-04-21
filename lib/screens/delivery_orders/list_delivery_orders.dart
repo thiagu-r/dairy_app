@@ -108,6 +108,48 @@ class _ListDeliveryOrdersState extends State<ListDeliveryOrders> {
     }
   }
 
+  Widget _buildOrderCard(DeliveryOrder order) {
+    final bool isUpdated = order.actualDeliveryDate != null;
+    
+    return Card(
+      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: isUpdated ? Colors.blue.withOpacity(0.1) : null,
+      child: ListTile(
+        title: Text(
+          order.sellerName,
+          style: TextStyle(
+            fontWeight: isUpdated ? FontWeight.bold : FontWeight.normal,
+          ),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Order #${order.orderNumber}'),
+            Text('Quantity: ${order.totalQuantity}'),
+            Text('Amount: Rs.${order.totalPrice}'),
+            if (isUpdated)
+              Text(
+                'Updated on: ${order.actualDeliveryDate}',
+                style: TextStyle(
+                  color: Colors.blue,
+                  fontSize: 12,
+                ),
+              ),
+          ],
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isUpdated)
+              Icon(Icons.check_circle, color: Colors.blue, size: 16),
+            Icon(Icons.chevron_right),
+          ],
+        ),
+        onTap: () => _showOrderDetails(order),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -153,18 +195,7 @@ class _ListDeliveryOrdersState extends State<ListDeliveryOrders> {
                         itemCount: _filteredOrders.length,
                         itemBuilder: (context, index) {
                           final order = _filteredOrders[index];
-                          return Card(
-                            margin: EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            child: ListTile(
-                              title: Text(order.sellerName),
-                              subtitle: Text('Order #${order.orderNumber}'),
-                              trailing: Icon(Icons.chevron_right),
-                              onTap: () => _showOrderDetails(order),
-                            ),
-                          );
+                          return _buildOrderCard(order);
                         },
                       ),
           ),

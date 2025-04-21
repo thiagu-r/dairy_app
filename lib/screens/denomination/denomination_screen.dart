@@ -206,13 +206,7 @@ class _DenominationScreenState extends State<DenominationScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Denomination Details'),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.save),
-            onPressed: _saveDenomination,
-          ),
-        ],
+        title: Text('Denomination Entry'),
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.all(16),
@@ -232,19 +226,56 @@ class _DenominationScreenState extends State<DenominationScreen> {
                         style: Theme.of(context).textTheme.titleLarge,
                       ),
                       SizedBox(height: 16),
-                      Text(
-                        'Total Cash Collected: Rs.${_totalCashCollected.toStringAsFixed(2)}',
-                        style: TextStyle(fontSize: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Cash Collection',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                'Rs.${_totalCashCollected.toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  color: Colors.green,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                'Expenses',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Text(
+                                'Rs.${_totalExpenses.toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  fontSize: 20,
+                                  color: Colors.red,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                      SizedBox(height: 8),
-                      Text(
-                        'Total Expenses: Rs.${_totalExpenses.toStringAsFixed(2)}',
-                        style: TextStyle(fontSize: 16),
-                      ),
-                      SizedBox(height: 8),
+                      Divider(height: 24),
                       Text(
                         'Expected Cash: Rs.${(_totalCashCollected - _totalExpenses).toStringAsFixed(2)}',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),
@@ -287,6 +318,22 @@ class _DenominationScreenState extends State<DenominationScreen> {
                         ),
                       ),
                     ],
+                  ),
+                ),
+              ),
+              SizedBox(height: 24),
+              
+              // Save Button
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton.icon(
+                  onPressed: _saveDenomination,
+                  icon: Icon(Icons.save),
+                  label: Text('Save Denomination'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).primaryColor,
+                    foregroundColor: Colors.white,
                   ),
                 ),
               ),

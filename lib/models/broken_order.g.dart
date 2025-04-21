@@ -24,14 +24,13 @@ class BrokenOrderAdapter extends TypeAdapter<BrokenOrder> {
       routeName: fields[4] as String,
       items: (fields[5] as List).cast<BrokenOrderItem>(),
       syncStatus: fields[6] as String,
-      localId: fields[7] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, BrokenOrder obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(7)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -45,9 +44,7 @@ class BrokenOrderAdapter extends TypeAdapter<BrokenOrder> {
       ..writeByte(5)
       ..write(obj.items)
       ..writeByte(6)
-      ..write(obj.syncStatus)
-      ..writeByte(7)
-      ..write(obj.localId);
+      ..write(obj.syncStatus);
   }
 
   @override

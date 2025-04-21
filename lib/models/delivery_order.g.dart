@@ -37,13 +37,14 @@ class DeliveryOrderAdapter extends TypeAdapter<DeliveryOrder> {
       actualDeliveryDate: fields[17] as String?,
       actualDeliveryTime: fields[18] as String?,
       localId: fields[19] as String?,
+      totalQuantity: fields[20] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, DeliveryOrder obj) {
     writer
-      ..writeByte(20)
+      ..writeByte(21)
       ..writeByte(0)
       ..write(obj.id)
       ..writeByte(1)
@@ -83,7 +84,9 @@ class DeliveryOrderAdapter extends TypeAdapter<DeliveryOrder> {
       ..writeByte(18)
       ..write(obj.actualDeliveryTime)
       ..writeByte(19)
-      ..write(obj.localId);
+      ..write(obj.localId)
+      ..writeByte(20)
+      ..write(obj.totalQuantity);
   }
 
   @override

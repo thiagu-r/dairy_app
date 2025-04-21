@@ -64,6 +64,9 @@ class DeliveryOrder extends HiveObject {
   @HiveField(19)
   String localId;
 
+  @HiveField(20)
+  String totalQuantity;
+
   DeliveryOrder({
     required this.id,
     required this.orderNumber,
@@ -85,6 +88,7 @@ class DeliveryOrder extends HiveObject {
     this.actualDeliveryDate,
     this.actualDeliveryTime,
     String? localId,
+    this.totalQuantity = "0.00",
   }) : this.localId = localId ?? 'mobile-do-${DateTime.now().millisecondsSinceEpoch}';
 
   void updateTotalPrice() {
@@ -100,6 +104,14 @@ class DeliveryOrder extends HiveObject {
   void updateBalanceAmount() {
     double balance = double.parse(totalPrice) - double.parse(amountCollected);
     balanceAmount = balance.toStringAsFixed(2);
+  }
+
+  void calculateTotalQuantity() {
+    double total = 0;
+    for (var item in items) {
+      total += double.parse(item.deliveredQuantity);
+    }
+    totalQuantity = total.toStringAsFixed(3);
   }
 
   factory DeliveryOrder.fromJson(Map<String, dynamic> json) {
@@ -127,7 +139,7 @@ class DeliveryOrder extends HiveObject {
   }
 
   Map<String, dynamic> toJson() => {
-    'id': null,
+    'id': id,  // Changed from 'id': null to include the original ID
     'order_number': orderNumber,
     'delivery_date': deliveryDate,
     'route': route,
@@ -146,6 +158,7 @@ class DeliveryOrder extends HiveObject {
     'actual_delivery_date': actualDeliveryDate ?? deliveryDate,
     'actual_delivery_time': actualDeliveryTime ?? deliveryTime,
     'local_id': localId,
+    'total_quantity': totalQuantity,
     'items': items.map((item) => item.toJson()).toList(),
   };
 }

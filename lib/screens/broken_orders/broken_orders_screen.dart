@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../models/loading_order.dart';
+import '../../models/broken_order.dart';
 import '../../services/offline_storage_service.dart';
 import '../../services/api_service.dart';
 import '../../providers/network_provider.dart';
@@ -161,12 +162,39 @@ class _BrokenItemsDialogState extends State<BrokenItemsDialog> {
     setState(() => _isSaving = true);
     try {
       // Update broken quantities in loading order
+      List<BrokenOrderItem> brokenItems = [];
+      
       for (var item in widget.loadingOrder.items) {
         final brokenQty = _brokenControllers[item.product]?.text ?? '0';
-        item.brokenQuantity = double.tryParse(brokenQty) ?? 0;
+        final quantity = double.tryParse(brokenQty) ?? 0;
+        
+        if (quantity > 0) {
+          item.brokenQuantity = quantity;
+          brokenItems.add(BrokenOrderItem(
+            productId: item.product.toString(),
+            productName: item.productName,
+            quantity: quantity,
+          ));
+        }
       }
 
-      // Save to storage
+      // Only create broken order if there are broken items
+      if (brokenItems.isNotEmpty) {
+        final brokenOrder = BrokenOrder(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          orderNumber: 'BO-${widget.loadingOrder.orderNumber}',
+          date: widget.loadingOrder.loadingDate,
+          routeId: widget.loadingOrder.route.toString(),
+          routeName: widget.loadingOrder.routeName,
+          items: brokenItems,
+          syncStatus: 'pending',
+        );
+
+        // Save broken order
+        await _storageService.saveBrokenOrder(brokenOrder);
+      }
+
+      // Save updated loading order
       await _storageService.updateLoadingOrder(widget.loadingOrder);
 
       Navigator.pop(context, true);

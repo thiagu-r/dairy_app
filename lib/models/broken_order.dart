@@ -25,9 +25,6 @@ class BrokenOrder extends HiveObject {
   @HiveField(6)
   String syncStatus;
 
-  @HiveField(7)
-  final String localId;
-
   BrokenOrder({
     required this.id,
     required this.orderNumber,
@@ -36,8 +33,7 @@ class BrokenOrder extends HiveObject {
     required this.routeName,
     required this.items,
     this.syncStatus = 'pending',
-    String? localId,
-  }) : this.localId = localId ?? 'mobile-bo-${DateTime.now().millisecondsSinceEpoch}';
+  });
 
   Map<String, dynamic> toJson() {
     return {
@@ -47,13 +43,13 @@ class BrokenOrder extends HiveObject {
       'route_id': routeId,
       'route_name': routeName,
       'items': items.map((item) => item.toJson()).toList(),
-      'local_id': localId,
+      'sync_status': syncStatus,
     };
   }
 }
 
 @HiveType(typeId: 13)
-class BrokenOrderItem {
+class BrokenOrderItem extends HiveObject {
   @HiveField(0)
   final String productId;
 
@@ -75,5 +71,13 @@ class BrokenOrderItem {
       'product_name': productName,
       'quantity': quantity,
     };
+  }
+
+  factory BrokenOrderItem.fromJson(Map<String, dynamic> json) {
+    return BrokenOrderItem(
+      productId: json['product_id'].toString(),
+      productName: json['product_name'],
+      quantity: double.parse(json['quantity'].toString()),
+    );
   }
 }
