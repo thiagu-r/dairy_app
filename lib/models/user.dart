@@ -26,6 +26,9 @@ class User {
   
   @HiveField(6)
   final DateTime lastLogin;
+
+  // Add a getter for the full name
+  String get name => '$firstName $lastName';
   
   User({
     required this.id,
@@ -36,8 +39,6 @@ class User {
     required this.role,
     required this.lastLogin,
   });
-  
-  String get fullName => '$firstName $lastName';
   
   factory User.fromJson(Map<String, dynamic> json) {
     return User(

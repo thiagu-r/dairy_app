@@ -197,60 +197,118 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context);
+    final networkProvider = Provider.of<NetworkProvider>(context);
+    
     return Scaffold(
       appBar: AppBar(
         title: Text('Bharat Dairy Delivery'),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.sync),
-            onPressed: _isSyncing ? null : _syncData,
-          ),
-          IconButton(
-            icon: Icon(Icons.logout),
-            onPressed: () async {
-              final networkProvider = Provider.of<NetworkProvider>(context, listen: false);
-              
-              // Show confirmation dialog
-              final shouldLogout = await showDialog<bool>(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: Text('Logout'),
-                  content: Text(
-                    networkProvider.isOnline 
-                      ? 'Are you sure you want to logout?' 
-                      : 'You are currently offline. Any unsynced data will remain on the device until you reconnect. Are you sure you want to logout?'
+      ),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: BoxDecoration(
+                color: Colors.blue,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  CircleAvatar(
+                    backgroundColor: Colors.white,
+                    radius: 30,
+                    child: Icon(
+                      Icons.person,
+                      size: 35,
+                      color: Colors.blue,
+                    ),
                   ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(false),
-                      child: Text('Cancel'),
+                  SizedBox(height: 10),
+                  Text(
+                    authProvider.currentUser?.name ?? 'User',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
                     ),
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(true),
-                      child: Text('Logout'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.red,
-                      ),
+                  ),
+                  Text(
+                    authProvider.currentUser?.email ?? '',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.8),
+                      fontSize: 14,
                     ),
-                  ],
-                ),
-              );
-
-              if (shouldLogout == true) {
-                // Perform local logout regardless of network status
-                await Provider.of<AuthProvider>(context, listen: false).logout();
+                  ),
+                ],
+              ),
+            ),
+            ListTile(
+              leading: Icon(Icons.sync),
+              title: Text('Sync Data'),
+              onTap: () {
+                Navigator.pop(context); // Close drawer
+                _syncData();
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.settings),
+              title: Text('Settings'),
+              onTap: () {
+                Navigator.pop(context);
+                // Add navigation to settings screen when available
+                _showComingSoonDialog(context);
+              },
+            ),
+            Divider(),
+            ListTile(
+              leading: Icon(Icons.logout, color: Colors.red),
+              title: Text(
+                'Logout',
+                style: TextStyle(color: Colors.red),
+              ),
+              onTap: () async {
+                Navigator.pop(context); // Close drawer
                 
-                // Navigate to login screen
-                if (mounted) {
-                  Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (_) => LoginScreen()),
-                    (route) => false,
-                  );
+                final shouldLogout = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: Text('Logout'),
+                    content: Text(
+                      networkProvider.isOnline 
+                        ? 'Are you sure you want to logout?' 
+                        : 'You are currently offline. Any unsynced data will remain on the device until you reconnect. Are you sure you want to logout?'
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: Text('Logout'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.red,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (shouldLogout == true) {
+                  await Provider.of<AuthProvider>(context, listen: false).logout();
+                  if (mounted) {
+                    Navigator.of(context).pushAndRemoveUntil(
+                      MaterialPageRoute(builder: (_) => LoginScreen()),
+                      (route) => false,
+                    );
+                  }
                 }
-              }
-            },
-          ),
-        ],
+              },
+            ),
+          ],
+        ),
       ),
       body: _buildHomeContent(context),
     );
