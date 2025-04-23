@@ -111,27 +111,34 @@ class _ListDeliveryOrdersState extends State<ListDeliveryOrders> {
   Widget _buildOrderCard(DeliveryOrder order) {
     final bool isUpdated = order.actualDeliveryDate != null;
     
+    // Calculate total delivered quantity
+    double totalDeliveredQuantity = 0;
+    for (var item in order.items) {
+      totalDeliveredQuantity += double.parse(item.deliveredQuantity);
+    }
+    
     return Card(
       margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: isUpdated ? Colors.blue.withOpacity(0.1) : null,
+      color: isUpdated ? Colors.green.withOpacity(0.1) : null,
       child: ListTile(
         title: Text(
           order.sellerName,
           style: TextStyle(
-            fontWeight: isUpdated ? FontWeight.bold : FontWeight.normal,
+            fontWeight: FontWeight.bold,
+            color: isUpdated ? Colors.green : Colors.black,
           ),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Order #${order.orderNumber}'),
-            Text('Quantity: ${order.totalQuantity}'),
+            Text('Quantity: ${totalDeliveredQuantity.toStringAsFixed(3)}'),
             Text('Amount: Rs.${order.totalPrice}'),
             if (isUpdated)
               Text(
                 'Updated on: ${order.actualDeliveryDate}',
                 style: TextStyle(
-                  color: Colors.blue,
+                  color: Colors.green,
                   fontSize: 12,
                 ),
               ),
@@ -141,7 +148,7 @@ class _ListDeliveryOrdersState extends State<ListDeliveryOrders> {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (isUpdated)
-              Icon(Icons.check_circle, color: Colors.blue, size: 16),
+              Icon(Icons.check_circle, color: Colors.green, size: 16),
             Icon(Icons.chevron_right),
           ],
         ),
