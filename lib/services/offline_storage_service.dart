@@ -34,7 +34,24 @@ class OfflineStorageService {
   // Loading Orders methods
   Future<void> storeLoadingOrder(LoadingOrder order) async {
     final box = await Hive.openBox<LoadingOrder>(loadingOrdersBox);
+    
+    // Remove any existing loading order for the same route and date
+    final existingOrders = box.values.where((existing) => 
+      existing.route == order.route && 
+      existing.loadingDate == order.loadingDate
+    );
+    
+    for (var existing in existingOrders) {
+      await box.delete(existing.key);
+    }
+    
+    // Store the new loading order
     await box.add(order);
+    
+    // Update current loading order reference
+    final ordersBox = await Hive.openBox('ordersBox');
+    await ordersBox.put('currentLoadingOrderId', order.id);
+    await ordersBox.put('currentOrderNumber', order.orderNumber);
   }
 
   Future<List<LoadingOrder>> getLoadingOrdersByDate(String date) async {
@@ -176,9 +193,21 @@ class OfflineStorageService {
     return Hive.box<BrokenOrder>('brokenOrders');
   }
 
-  Future<void> saveBrokenOrder(BrokenOrder brokenOrder) async {
-    final box = await _getBrokenOrdersBox();
-    await box.put(brokenOrder.id, brokenOrder);
+  Future<void> saveBrokenOrder(BrokenOrder order) async {
+    final box = await Hive.openBox<BrokenOrder>('brokenOrders');
+    
+    // Remove any existing broken order for the same route and date
+    final existingOrders = box.values.where((existing) => 
+      existing.routeId == order.routeId && 
+      existing.date == order.date
+    );
+    
+    for (var existing in existingOrders) {
+      await box.delete(existing.key);
+    }
+    
+    // Store the new broken order
+    await box.add(order);
   }
 
   Future<List<BrokenOrder>> getBrokenOrders() async {

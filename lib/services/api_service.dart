@@ -8,6 +8,8 @@ import '../models/route_model.dart';
 import '../models/delivery_order.dart';
 import '../models/broken_order.dart';
 import '../services/offline_storage_service.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
 
 class ApiService {
   final String baseUrl = ApiConfig.baseUrl;
@@ -193,73 +195,36 @@ class ApiService {
       final headers = await _getHeaders();
       
       // Debug: Print original payload structure
-      print('\n=== ORIGINAL PAYLOAD STRUCTURE ===');
-      payload['data'].forEach((key, value) {
-        print('\nKey: $key');
-        print('Type: ${value.runtimeType}');
-        if (value is List) {
-          print('List length: ${value.length}');
-          if (value.isNotEmpty) {
-            print('First item type: ${value.first.runtimeType}');
-          }
-        }
-      });
-      
-      // Create a new map to store the converted data
-      Map<String, dynamic> convertedPayload = {
-        'data': {}
-      };
-
-      // Convert each key-value pair in the data map
-      payload['data'].forEach((key, value) {
-        print('\nProcessing key: $key'); // Debug print
-        
-        if (value is List) {
-          if (key == 'denominations') {
-            // Handle denominations specially
-            convertedPayload['data'][key] = value.expand((item) {
-              print('Denomination item type: ${item.runtimeType}'); // Debug print
-              if (item is List) {
-                return item;
-              } else {
-                return item.toJson();
-              }
-            }).toList();
-          } else {
-            // Handle other lists
-            convertedPayload['data'][key] = value.map((item) {
-              print('Item type for $key: ${item.runtimeType}'); // Debug print
-              if (item is Map) {
-                return Map<String, dynamic>.from(item);
-              }
-              return item.toJson();
-            }).toList();
-          }
-        } else {
-          convertedPayload['data'][key] = value;
-        }
-      });
-
-      // Debug: Print converted payload structure
-      print('\n=== CONVERTED PAYLOAD STRUCTURE ===');
+      print('\n=== SYNC PAYLOAD DEBUG ===');
       const JsonEncoder encoder = JsonEncoder.withIndent('  ');
-      String prettyJson = encoder.convert(convertedPayload);
+      
+      // Create a formatted string of the payload
+      String prettyJson = encoder.convert(payload);
       
       // Print payload in chunks for better readability
-      print('\nPrinting payload in chunks:');
+      print('\nFull Sync Payload:');
       const int chunkSize = 1000;
       for (var i = 0; i < prettyJson.length; i += chunkSize) {
         var end = (i + chunkSize < prettyJson.length) ? i + chunkSize : prettyJson.length;
-        print('\nChunk ${(i ~/ chunkSize) + 1}:');
         print(prettyJson.substring(i, end));
         // Add a small delay between chunks for better console readability
         await Future.delayed(Duration(milliseconds: 100));
+      }
+      
+      // Save payload to file for debugging (optional)
+      try {
+        final directory = await getApplicationDocumentsDirectory();
+        final file = File('${directory.path}/last_sync_payload.json');
+        await file.writeAsString(prettyJson);
+        print('\nPayload saved to: ${file.path}');
+      } catch (e) {
+        print('Failed to save payload to file: $e');
       }
 
       final response = await http.post(
         Uri.parse('$baseUrl${ApiConfig.sync}'),
         headers: headers,
-        body: json.encode(convertedPayload),
+        body: json.encode(payload),
       );
 
       print('\n=== API RESPONSE ===');

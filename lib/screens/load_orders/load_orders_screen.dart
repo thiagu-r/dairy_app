@@ -8,6 +8,7 @@ import '../../widgets/loading_indicator.dart';
 import '../../widgets/error_message.dart';
 import '../../models/loading_order.dart';
 import '../../services/offline_storage_service.dart';
+import 'package:hive/hive.dart';
 
 class LoadOrdersScreen extends StatefulWidget {
   @override
@@ -226,6 +227,11 @@ class _LoadOrdersScreenState extends State<LoadOrdersScreen> {
 
         _clearForm();
         Navigator.pop(context);
+
+        // After successful loading order creation/retrieval
+        final ordersBox = await Hive.openBox('ordersBox');
+        await ordersBox.put('currentLoadingOrderId', loadingOrder.id);
+        await ordersBox.put('currentOrderNumber', loadingOrder.orderNumber);
       } else {
         throw Exception(response['message'] ?? 'Failed to create loading order');
       }

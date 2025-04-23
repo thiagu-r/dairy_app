@@ -60,7 +60,8 @@ class Expense extends HiveObject {
       'description': description,
       'amount': amount,
       'route': route,
-      'expense_type': expenseType.toString().split('.').last,
+      'expense_type': expenseType.toString().split('.').last,  // Convert enum to string format expected by API
+      'sync_status': syncStatus,
       'local_id': localId,
     };
   }

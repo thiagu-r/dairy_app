@@ -5,49 +5,20 @@ part 'return_order.g.dart';
 @HiveType(typeId: 14)
 class ReturnOrder extends HiveObject {
   @HiveField(0)
-  final String id;
-
-  @HiveField(1)
-  final String orderNumber;
-
-  @HiveField(2)
-  final String date;
-
-  @HiveField(3)
-  final String routeId;
-
-  @HiveField(4)
-  final String routeName;
-
-  @HiveField(5)
-  final List<ReturnOrderItem> items;
-
-  @HiveField(6)
   String syncStatus;
 
-  @HiveField(7)
-  final String localId;
+  @HiveField(1)
+  final List<ReturnOrderItem> items;
 
   ReturnOrder({
-    required this.id,
-    required this.orderNumber,
-    required this.date,
-    required this.routeId,
-    required this.routeName,
-    required this.items,
     this.syncStatus = 'pending',
-    String? localId,
-  }) : this.localId = localId ?? 'mobile-ro-${DateTime.now().millisecondsSinceEpoch}';
+    required this.items,
+  });
 
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
-      'order_number': orderNumber,
-      'date': date,
-      'route_id': routeId,
-      'route_name': routeName,
+      'sync_status': syncStatus,
       'items': items.map((item) => item.toJson()).toList(),
-      'local_id': localId,
     };
   }
 }
@@ -55,24 +26,19 @@ class ReturnOrder extends HiveObject {
 @HiveType(typeId: 15)
 class ReturnOrderItem {
   @HiveField(0)
-  final String productId;
+  final int product;
 
   @HiveField(1)
-  final String productName;
-
-  @HiveField(2)
   final double quantity;
 
   ReturnOrderItem({
-    required this.productId,
-    required this.productName,
+    required this.product,
     required this.quantity,
   });
 
   Map<String, dynamic> toJson() {
     return {
-      'product_id': productId,
-      'product_name': productName,
+      'product': product,
       'quantity': quantity,
     };
   }

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:hive/hive.dart';
 import 'dart:convert';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/network_provider.dart';
 import '../models/public_sale.dart';
@@ -10,6 +12,7 @@ import '../models/broken_order.dart';
 import '../models/return_order.dart';
 import '../models/expense.dart';
 import '../models/denomination.dart';
+import '../models/loading_order.dart';
 import '../services/api_service.dart';
 import 'load_orders/load_orders_dashboard.dart';
 import 'delivery_orders/delivery_orders_dashboard.dart';
@@ -43,19 +46,19 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
-    // Add confirmation dialog
+    // Show confirmation dialog
     final shouldSync = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Confirm Sync'),
-        content: Text('Are you sure you want to sync all pending changes to the server?'),
+        title: Text('Sync Data'),
+        content: Text('Are you sure you want to sync all pending data to the server?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
+            onPressed: () => Navigator.pop(context, false),
             child: Text('Cancel'),
           ),
           TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
+            onPressed: () => Navigator.pop(context, true),
             child: Text('Sync'),
             style: TextButton.styleFrom(
               foregroundColor: Colors.blue,
@@ -63,64 +66,65 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-    );
+    ) ?? false;
 
-    if (shouldSync != true) {
-      return;
-    }
+    if (!shouldSync) return;
 
     setState(() => _isSyncing = true);
 
     try {
-      // Get all unsynced data from Hive
+      // Calculate and store return orders before syncing
+      await _calculateAndStoreReturnOrders();
+
+      // Add debug logging for return orders
+      final returnOrdersBox = await Hive.openBox<ReturnOrder>('returnOrders');
+      print('\n=== DEBUG: Return Orders ===');
+      print('Total return orders in box: ${returnOrdersBox.length}');
+      print('All return orders: ${returnOrdersBox.values.toList()}');
+      print('Pending return orders: ${returnOrdersBox.values.where((order) => order.syncStatus == 'pending').toList()}');
+
+      // Add debug logging for current loading order
+      final ordersBox = await Hive.openBox('ordersBox');
+      print('\n=== DEBUG: Loading Order ===');
+      print('Current loading order ID: ${ordersBox.get('currentLoadingOrderId')}');
+      print('All keys in ordersBox: ${ordersBox.keys.toList()}');
+      final currentLoadingOrderId = ordersBox.get('currentLoadingOrderId');
+      print('Retrieved currentLoadingOrderId: $currentLoadingOrderId');
+
+      // Get box lengths for debugging
       final publicSalesBox = await Hive.openBox<PublicSale>('publicSales');
       final deliveryOrdersBox = await Hive.openBox<DeliveryOrder>('deliveryOrders');
       final brokenOrdersBox = await Hive.openBox<BrokenOrder>('brokenOrders');
-      final returnOrdersBox = await Hive.openBox<ReturnOrder>('returnOrders');
       final expensesBox = await Hive.openBox<Expense>('expenses');
       final denominationsBox = await Hive.openBox<Denomination>('denominations');
 
-      // Get unsynced records from each box
-      final unsyncedSales = publicSalesBox.values
-          .where((sale) => sale.syncStatus == 'pending')
-          .toList();
-      
-      final unsyncedDeliveries = deliveryOrdersBox.values
-          .where((order) => order.syncStatus == 'pending')
-          .toList();
+      print('\n=== DEBUG: Box Lengths ===');
+      print('Public Sales Box Length: ${publicSalesBox.length}');
+      print('Delivery Orders Box Length: ${deliveryOrdersBox.length}');
+      print('Broken Orders Box Length: ${brokenOrdersBox.length}');
+      print('Return Orders Box Length: ${returnOrdersBox.length}');
+      print('Expenses Box Length: ${expensesBox.length}');
+      print('Denominations Box Length: ${denominationsBox.length}');
 
-      final unsyncedBrokenOrders = brokenOrdersBox.values
-          .where((order) => order.syncStatus == 'pending')
-          .toList();
+      // Get unsynced counts
+      final unsyncedSales = publicSalesBox.values.where((sale) => sale.syncStatus == 'pending').toList();
+      final unsyncedDeliveries = deliveryOrdersBox.values.where((order) => order.syncStatus == 'pending').toList();
+      final unsyncedBrokenOrders = brokenOrdersBox.values.where((order) => order.syncStatus == 'pending').toList();
+      final returnOrders = returnOrdersBox.values.where((order) => order.syncStatus == 'pending').toList();
+      final unsyncedExpenses = expensesBox.values.where((expense) => expense.syncStatus == 'pending').toList();
+      final unsyncedDenominations = denominationsBox.values.where((denomination) => denomination.syncStatus == 'pending').toList();
 
-      final unsyncedReturnOrders = returnOrdersBox.values
-          .where((order) => order.syncStatus == 'pending')
-          .toList();
+      print('\n=== DEBUG: Unsynced Counts ===');
+      print('Unsynced Sales: ${unsyncedSales.length}');
+      print('Unsynced Deliveries: ${unsyncedDeliveries.length}');
+      print('Unsynced Broken Orders: ${unsyncedBrokenOrders.length}');
+      print('Unsynced Return Orders: ${returnOrders.length}');
+      print('Unsynced Expenses: ${unsyncedExpenses.length}');
+      print('Unsynced Denominations: ${unsyncedDenominations.length}');
 
-      final unsyncedExpenses = expensesBox.values
-          .where((expense) => expense.syncStatus == 'pending')
-          .toList();
-
-      final unsyncedDenominations = denominationsBox.values
-          .where((denomination) => denomination.syncStatus == 'pending')
-          .toList();
-
-      // Skip sync if no pending changes
-      if (unsyncedSales.isEmpty && 
-          unsyncedDeliveries.isEmpty && 
-          unsyncedBrokenOrders.isEmpty &&
-          unsyncedReturnOrders.isEmpty &&
-          unsyncedExpenses.isEmpty &&
-          unsyncedDenominations.isEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('No pending changes to sync'),
-              backgroundColor: Colors.blue,
-            ),
-          );
-        }
-        return;
+      print('\n=== DEBUG: Return Orders Details ===');
+      for (var order in returnOrders) {
+        print('Return Order: ${order.toString()}');
       }
 
       // Prepare payload with all unsynced data
@@ -129,61 +133,89 @@ class _HomeScreenState extends State<HomeScreen> {
           'public_sales': unsyncedSales.map((sale) => sale.toJson()).toList(),
           'delivery_orders': unsyncedDeliveries.map((order) => order.toJson()).toList(),
           'broken_orders': unsyncedBrokenOrders.map((order) => order.toJson()).toList(),
-          'return_orders': unsyncedReturnOrders.map((order) => order.toJson()).toList(),
+          'return_orders': returnOrders.map((order) => order.toJson()).toList(),
           'expenses': unsyncedExpenses.map((expense) => expense.toJson()).toList(),
           'denominations': unsyncedDenominations.map((denomination) => denomination.toJson()).toList(),
+          'loading_order': {
+            'order_number': currentLoadingOrderId ?? ordersBox.get('currentOrderNumber')
+          },
         }
       };
 
-      // Call sync API
+      // Debug print the payload
+      print('\n=== FULL SYNC PAYLOAD DEBUG ===');
+      const JsonEncoder encoder = JsonEncoder.withIndent('  ');
+      String prettyJson = encoder.convert(payload);
+      
+      // Print payload in chunks for better readability
+      print('\nFull Sync Payload:');
+      const int chunkSize = 1000;
+      for (var i = 0; i < prettyJson.length; i += chunkSize) {
+        var end = (i + chunkSize < prettyJson.length) ? i + chunkSize : prettyJson.length;
+        print(prettyJson.substring(i, end));
+      }
+
+      // Save payload to file for debugging
+      try {
+        final directory = await getApplicationDocumentsDirectory();
+        final file = File('${directory.path}/last_sync_payload.json');
+        await file.writeAsString(prettyJson);
+        print('\nPayload saved to: ${file.path}');
+      } catch (e) {
+        print('Failed to save payload to file: $e');
+      }
+
+      // Make API call
       final response = await _apiService.syncData(payload);
 
-      // Update local status based on response
       if (response['success'] == true) {
         // Update sync status for all synced items
         await Future.wait([
-          ...unsyncedSales.map((sale) async {
+          ...unsyncedSales.map((sale) {
             sale.syncStatus = 'synced';
-            await sale.save();
+            return publicSalesBox.put(sale.key, sale);
           }),
-          ...unsyncedDeliveries.map((order) async {
+          ...unsyncedDeliveries.map((order) {
             order.syncStatus = 'synced';
-            await order.save();
+            return deliveryOrdersBox.put(order.key, order);
           }),
-          ...unsyncedBrokenOrders.map((order) async {
+          ...unsyncedBrokenOrders.map((order) {
             order.syncStatus = 'synced';
-            await order.save();
+            return brokenOrdersBox.put(order.key, order);
           }),
-          ...unsyncedReturnOrders.map((order) async {
+          ...returnOrders.map((order) {
             order.syncStatus = 'synced';
-            await order.save();
+            return returnOrdersBox.put(order.key, order);
           }),
-          ...unsyncedExpenses.map((expense) async {
+          ...unsyncedExpenses.map((expense) {
             expense.syncStatus = 'synced';
-            await expense.save();
+            return expensesBox.put(expense.key, expense);
           }),
-          ...unsyncedDenominations.map((denomination) async {
+          ...unsyncedDenominations.map((denomination) {
             denomination.syncStatus = 'synced';
-            await denomination.save();
+            return denominationsBox.put(denomination.key, denomination);
           }),
         ]);
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Sync completed successfully'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Data synced successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
       } else {
         throw Exception(response['message'] ?? 'Sync failed');
       }
+
     } catch (e) {
+      print('\n=== DEBUG: Error in _syncData ===');
+      print('Error details: $e');
+      print('Stack trace: ${StackTrace.current}');
+      
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Sync failed: $e'),
+            content: Text('Failed to sync: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -191,6 +223,59 @@ class _HomeScreenState extends State<HomeScreen> {
     } finally {
       if (mounted) {
         setState(() => _isSyncing = false);
+      }
+    }
+  }
+
+  Future<void> _calculateAndStoreReturnOrders() async {
+    final loadingOrdersBox = await Hive.openBox<LoadingOrder>('loadingOrders');
+    final deliveryOrdersBox = await Hive.openBox<DeliveryOrder>('deliveryOrders');
+    final returnOrdersBox = await Hive.openBox<ReturnOrder>('returnOrders');
+
+    // Clear existing return orders
+    await returnOrdersBox.clear();
+
+    // Process each loading order
+    for (var loadingOrder in loadingOrdersBox.values) {
+      // Get all delivery orders for this loading order
+      final deliveryOrders = deliveryOrdersBox.values.where((order) =>
+        order.route == loadingOrder.route &&
+        order.deliveryDate == loadingOrder.loadingDate
+      ).toList();
+
+      // Calculate used quantities
+      Map<int, double> usedQuantities = {};
+      for (var order in deliveryOrders) {
+        for (var item in order.items) {
+          usedQuantities[item.product] = (usedQuantities[item.product] ?? 0) +
+              double.parse(item.deliveredQuantity);
+        }
+      }
+
+      // Calculate return quantities
+      List<ReturnOrderItem> returnItems = [];
+      for (var item in loadingOrder.items) {
+        double totalLoaded = double.parse(item.totalQuantity);
+        double used = usedQuantities[item.product] ?? 0;
+        if (item.brokenQuantity != null) {
+          used += item.brokenQuantity!;
+        }
+        double returnQty = totalLoaded - used;
+        if (returnQty > 0) {
+          returnItems.add(ReturnOrderItem(
+            product: item.product,
+            quantity: returnQty,
+          ));
+        }
+      }
+
+      // If there are return items, create and store a return order
+      if (returnItems.isNotEmpty) {
+        final returnOrder = ReturnOrder(
+          syncStatus: 'pending',
+          items: returnItems,
+        );
+        await returnOrdersBox.add(returnOrder);
       }
     }
   }

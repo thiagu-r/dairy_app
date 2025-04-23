@@ -83,14 +83,7 @@ void main() async {
     Hive.registerAdapter(ExpenseTypeAdapter());
   }
   
-  // Clear existing boxes to avoid type conflicts
-  await Hive.deleteBoxFromDisk('loadingOrders');
-  await Hive.deleteBoxFromDisk('deliveryOrders');
-  await Hive.deleteBoxFromDisk('publicSales');
-  await Hive.deleteBoxFromDisk('expenses');
-  await Hive.deleteBoxFromDisk('denominations');
-  
-  // Open Hive boxes
+  // Open Hive boxes without clearing them
   await Future.wait([
     Hive.openBox('authBox'),
     Hive.openBox('ordersBox'),
@@ -103,6 +96,7 @@ void main() async {
     Hive.openBox<Expense>('expenses'),
     Hive.openBox<route_model.Route>('routes'),
     Hive.openBox<Denomination>('denominations'),
+    Hive.openBox<ReturnOrder>('returnOrders'),
   ]);
   
   runApp(MyApp());

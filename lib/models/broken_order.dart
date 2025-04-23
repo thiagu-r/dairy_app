@@ -25,6 +25,9 @@ class BrokenOrder extends HiveObject {
   @HiveField(6)
   String syncStatus;
 
+  @HiveField(7)
+  String status;
+
   BrokenOrder({
     required this.id,
     required this.orderNumber,
@@ -33,6 +36,7 @@ class BrokenOrder extends HiveObject {
     required this.routeName,
     required this.items,
     this.syncStatus = 'pending',
+    this.status = 'pending',
   });
 
   Map<String, dynamic> toJson() {
@@ -44,6 +48,7 @@ class BrokenOrder extends HiveObject {
       'route_name': routeName,
       'items': items.map((item) => item.toJson()).toList(),
       'sync_status': syncStatus,
+      'status': status,
     };
   }
 }
