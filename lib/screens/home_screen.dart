@@ -43,6 +43,32 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
+    // Add confirmation dialog
+    final shouldSync = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Confirm Sync'),
+        content: Text('Are you sure you want to sync all pending changes to the server?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text('Sync'),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.blue,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldSync != true) {
+      return;
+    }
+
     setState(() => _isSyncing = true);
 
     try {

@@ -4,6 +4,12 @@ import '../../services/api_service.dart';
 import '../../services/offline_storage_service.dart';
 import '../../models/loading_order.dart';
 import '../../models/delivery_order.dart';
+import 'package:hive/hive.dart';
+import '../../models/return_order.dart';
+import '../../models/public_sale.dart';
+import '../../models/broken_order.dart';
+import '../../models/expense.dart';
+import '../../models/denomination.dart';
 
 class FetchDeliveryOrders extends StatefulWidget {
   @override
@@ -56,7 +62,8 @@ class _FetchDeliveryOrdersState extends State<FetchDeliveryOrders> {
           builder: (context) => AlertDialog(
             title: Text('Orders Already Exist'),
             content: Text(
-              'Delivery orders for this route and date already exist. Do you want to fetch and replace them?'
+              'Delivery orders for this route and date already exist. Do you want to fetch and replace them?\n\n' +
+              'Note: This will clear ALL return orders, public sales, broken orders, expenses, and denominations.'
             ),
             actions: [
               TextButton(
@@ -77,6 +84,15 @@ class _FetchDeliveryOrdersState extends State<FetchDeliveryOrders> {
         }
       }
 
+      // Clear all related data
+      await Future.wait([
+        Hive.openBox<ReturnOrder>('returnOrders').then((box) => box.clear()),
+        Hive.openBox<PublicSale>('publicSales').then((box) => box.clear()),
+        Hive.openBox<BrokenOrder>('brokenOrders').then((box) => box.clear()),
+        Hive.openBox<Expense>('expenses').then((box) => box.clear()),
+        Hive.openBox<Denomination>('denominations').then((box) => box.clear()),
+      ]);
+
       final deliveryOrders = await _apiService.getDeliveryOrders(
         loadingOrder.loadingDate,
         loadingOrder.route,
@@ -89,7 +105,7 @@ class _FetchDeliveryOrdersState extends State<FetchDeliveryOrders> {
         SnackBar(
           content: Text(
             hasExisting 
-              ? 'Successfully updated delivery orders'
+              ? 'Successfully updated delivery orders and cleared all related data'
               : 'Successfully fetched and stored delivery orders'
           ),
           backgroundColor: Colors.green,
