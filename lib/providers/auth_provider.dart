@@ -182,23 +182,23 @@ class AuthProvider with ChangeNotifier {
   Future<bool> tryAutoLogin() async {
     final authBox = Hive.box('authBox');
     final accessToken = authBox.get('accessToken');
-    final refreshToken = authBox.get('refreshToken');
+    final refreshTokenValue = authBox.get('refreshToken');
     final expiryString = authBox.get('tokenExpiry');
 
-    if (accessToken == null || refreshToken == null || expiryString == null) {
+    if (accessToken == null || refreshTokenValue == null || expiryString == null) {
       return false;
     }
 
     final expiry = DateTime.parse(expiryString);
     if (expiry.isBefore(DateTime.now())) {
       // Token expired, try to refresh
-      _refreshToken = refreshToken;
+      _refreshToken = refreshTokenValue;
       await refreshToken();
       return hasValidToken;
     }
 
     _accessToken = accessToken;
-    _refreshToken = refreshToken;
+    _refreshToken = refreshTokenValue;
     _tokenExpiry = expiry;
     _setupTokenExpiration();
     

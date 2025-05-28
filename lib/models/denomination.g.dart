@@ -24,20 +24,22 @@ class DenominationAdapter extends TypeAdapter<Denomination> {
       note50: fields[4] as int,
       note20: fields[5] as int,
       note10: fields[6] as int,
-      coins: fields[7] as double,
-      totalCashCollected: fields[8] as double,
-      totalExpenses: fields[9] as double,
-      denominationTotal: fields[10] as double,
-      difference: fields[11] as double,
-      localId: fields[12] as String?,
-      syncStatus: fields[13] as String,
+      coin1: fields[7] as int,
+      coin2: fields[8] as int,
+      coin5: fields[9] as int,
+      totalCashCollected: fields[10] as double,
+      totalExpenses: fields[11] as double,
+      denominationTotal: fields[12] as double,
+      difference: fields[13] as double,
+      localId: fields[14] as String?,
+      syncStatus: fields[15] as String,
     );
   }
 
   @override
   void write(BinaryWriter writer, Denomination obj) {
     writer
-      ..writeByte(14)
+      ..writeByte(16)
       ..writeByte(0)
       ..write(obj.date)
       ..writeByte(1)
@@ -53,18 +55,22 @@ class DenominationAdapter extends TypeAdapter<Denomination> {
       ..writeByte(6)
       ..write(obj.note10)
       ..writeByte(7)
-      ..write(obj.coins)
+      ..write(obj.coin1)
       ..writeByte(8)
-      ..write(obj.totalCashCollected)
+      ..write(obj.coin2)
       ..writeByte(9)
-      ..write(obj.totalExpenses)
+      ..write(obj.coin5)
       ..writeByte(10)
-      ..write(obj.denominationTotal)
+      ..write(obj.totalCashCollected)
       ..writeByte(11)
-      ..write(obj.difference)
+      ..write(obj.totalExpenses)
       ..writeByte(12)
-      ..write(obj.localId)
+      ..write(obj.denominationTotal)
       ..writeByte(13)
+      ..write(obj.difference)
+      ..writeByte(14)
+      ..write(obj.localId)
+      ..writeByte(15)
       ..write(obj.syncStatus);
   }
 

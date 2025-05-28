@@ -69,36 +69,36 @@ class ExpenseTypeAdapter extends TypeAdapter<ExpenseType> {
   ExpenseType read(BinaryReader reader) {
     switch (reader.readByte()) {
       case 0:
-        return ExpenseType.fuel;
-      case 1:
-        return ExpenseType.maintenance;
-      case 2:
-        return ExpenseType.repairs;
-      case 3:
         return ExpenseType.food;
-      case 4:
-        return ExpenseType.other;
-      default:
+      case 1:
+        return ExpenseType.vehicle;
+      case 2:
         return ExpenseType.fuel;
+      case 3:
+        return ExpenseType.other;
+      case 4:
+        return ExpenseType.allowance;
+      default:
+        return ExpenseType.food;
     }
   }
 
   @override
   void write(BinaryWriter writer, ExpenseType obj) {
     switch (obj) {
-      case ExpenseType.fuel:
+      case ExpenseType.food:
         writer.writeByte(0);
         break;
-      case ExpenseType.maintenance:
+      case ExpenseType.vehicle:
         writer.writeByte(1);
         break;
-      case ExpenseType.repairs:
+      case ExpenseType.fuel:
         writer.writeByte(2);
         break;
-      case ExpenseType.food:
+      case ExpenseType.other:
         writer.writeByte(3);
         break;
-      case ExpenseType.other:
+      case ExpenseType.allowance:
         writer.writeByte(4);
         break;
     }

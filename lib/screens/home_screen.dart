@@ -73,11 +73,13 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _isSyncing = true);
 
     try {
+      // Always clear return orders before recalculating
+      final returnOrdersBox = await Hive.openBox<ReturnOrder>('returnOrders');
+      await returnOrdersBox.clear();
       // Calculate and store return orders before syncing
       await _calculateAndStoreReturnOrders();
 
       // Add debug logging for return orders
-      final returnOrdersBox = await Hive.openBox<ReturnOrder>('returnOrders');
       print('\n=== DEBUG: Return Orders ===');
       print('Total return orders in box: ${returnOrdersBox.length}');
       print('All return orders: ${returnOrdersBox.values.toList()}');
@@ -108,15 +110,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
       // Get unsynced counts
       final unsyncedSales = publicSalesBox.values.where((sale) => sale.syncStatus == 'pending').toList();
-      final unsyncedDeliveries = deliveryOrdersBox.values.where((order) => order.syncStatus == 'pending').toList();
+      final allDeliveries = deliveryOrdersBox.values.toList();
       final unsyncedBrokenOrders = brokenOrdersBox.values.where((order) => order.syncStatus == 'pending').toList();
       final returnOrders = returnOrdersBox.values.where((order) => order.syncStatus == 'pending').toList();
       final unsyncedExpenses = expensesBox.values.where((expense) => expense.syncStatus == 'pending').toList();
       final unsyncedDenominations = denominationsBox.values.where((denomination) => denomination.syncStatus == 'pending').toList();
 
       print('\n=== DEBUG: Unsynced Counts ===');
-      print('Unsynced Sales: ${unsyncedSales.length}');
-      print('Unsynced Deliveries: ${unsyncedDeliveries.length}');
+      print('Unsynced Sales: [32m${unsyncedSales.length}[0m');
+      print('All Deliveries: [32m${allDeliveries.length}[0m');
       print('Unsynced Broken Orders: ${unsyncedBrokenOrders.length}');
       print('Unsynced Return Orders: ${returnOrders.length}');
       print('Unsynced Expenses: ${unsyncedExpenses.length}');
@@ -124,16 +126,23 @@ class _HomeScreenState extends State<HomeScreen> {
 
       print('\n=== DEBUG: Return Orders Details ===');
       for (var order in returnOrders) {
-        print('Return Order: ${order.toString()}');
+        print('Return Order: [33m${order.toString()}[0m');
       }
 
       // Prepare payload with all unsynced data
       final payload = {
         'data': {
           'public_sales': unsyncedSales.map((sale) => sale.toJson()).toList(),
-          'delivery_orders': unsyncedDeliveries.map((order) => order.toJson()).toList(),
+          'delivery_orders': allDeliveries.map((order) => order.toJson()).toList(),
           'broken_orders': unsyncedBrokenOrders.map((order) => order.toJson()).toList(),
-          'return_orders': returnOrders.map((order) => order.toJson()).toList(),
+          'return_orders': returnOrders.isEmpty
+              ? []
+              : [
+                  ReturnOrder(
+                    syncStatus: 'pending',
+                    items: returnOrders.expand((order) => order.items).toList(),
+                  ).toJson()
+                ],
           'expenses': unsyncedExpenses.map((expense) => expense.toJson()).toList(),
           'denominations': unsyncedDenominations.map((denomination) => denomination.toJson()).toList(),
           'loading_order': {
@@ -175,7 +184,7 @@ class _HomeScreenState extends State<HomeScreen> {
             sale.syncStatus = 'synced';
             return publicSalesBox.put(sale.key, sale);
           }),
-          ...unsyncedDeliveries.map((order) {
+          ...allDeliveries.map((order) {
             order.syncStatus = 'synced';
             return deliveryOrdersBox.put(order.key, order);
           }),
@@ -231,11 +240,14 @@ class _HomeScreenState extends State<HomeScreen> {
     final loadingOrdersBox = await Hive.openBox<LoadingOrder>('loadingOrders');
     final deliveryOrdersBox = await Hive.openBox<DeliveryOrder>('deliveryOrders');
     final returnOrdersBox = await Hive.openBox<ReturnOrder>('returnOrders');
+    final publicSalesBox = await Hive.openBox<PublicSale>('publicSales');
 
     // Clear existing return orders
     await returnOrdersBox.clear();
 
-    // Process each loading order
+    // Aggregate available quantities for all products across all loading orders
+    Map<int, double> totalAvailableQuantities = {};
+
     for (var loadingOrder in loadingOrdersBox.values) {
       // Get all delivery orders for this loading order
       final deliveryOrders = deliveryOrdersBox.values.where((order) =>
@@ -243,40 +255,56 @@ class _HomeScreenState extends State<HomeScreen> {
         order.deliveryDate == loadingOrder.loadingDate
       ).toList();
 
-      // Calculate used quantities
+      // Get all public sales for this route and date
+      final publicSales = publicSalesBox.values.where((sale) =>
+        sale.route == loadingOrder.route &&
+        sale.saleDate == loadingOrder.loadingDate
+      ).toList();
+
+      // Calculate used quantities for this loading order
       Map<int, double> usedQuantities = {};
+      // Add delivered quantities from delivery orders
       for (var order in deliveryOrders) {
         for (var item in order.items) {
           usedQuantities[item.product] = (usedQuantities[item.product] ?? 0) +
               double.parse(item.deliveredQuantity);
         }
       }
+      // Add sold quantities from public sales
+      for (var sale in publicSales) {
+        for (var item in sale.items) {
+          usedQuantities[item.product] = (usedQuantities[item.product] ?? 0) +
+              double.parse(item.quantity);
+        }
+      }
 
-      // Calculate return quantities
-      List<ReturnOrderItem> returnItems = [];
+      // For each product in the loading order, calculate available for this loading order
       for (var item in loadingOrder.items) {
         double totalLoaded = double.parse(item.totalQuantity);
         double used = usedQuantities[item.product] ?? 0;
-        if (item.brokenQuantity != null) {
+        // Add broken quantity from loading order item (not from broken orders box)
+        if (item.brokenQuantity != null && item.brokenQuantity! > 0) {
           used += item.brokenQuantity!;
         }
-        double returnQty = totalLoaded - used;
-        if (returnQty > 0) {
-          returnItems.add(ReturnOrderItem(
-            product: item.product,
-            quantity: returnQty,
-          ));
+        double availableQty = totalLoaded - used;
+        if (availableQty > 0) {
+          totalAvailableQuantities[item.product] = (totalAvailableQuantities[item.product] ?? 0) + availableQty;
         }
       }
+    }
 
-      // If there are return items, create and store a return order
-      if (returnItems.isNotEmpty) {
-        final returnOrder = ReturnOrder(
-          syncStatus: 'pending',
-          items: returnItems,
-        );
-        await returnOrdersBox.add(returnOrder);
-      }
+    // Create one ReturnOrderItem per product (across all loading orders)
+    List<ReturnOrderItem> returnItems = totalAvailableQuantities.entries
+        .map((e) => ReturnOrderItem(product: e.key, quantity: e.value))
+        .toList();
+
+    // If there are return items, create and store a single return order
+    if (returnItems.isNotEmpty) {
+      final returnOrder = ReturnOrder(
+        syncStatus: 'pending',
+        items: returnItems,
+      );
+      await returnOrdersBox.add(returnOrder);
     }
   }
 

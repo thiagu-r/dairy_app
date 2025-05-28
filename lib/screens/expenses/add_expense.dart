@@ -120,9 +120,27 @@ class _AddExpenseState extends State<AddExpense> {
                 ),
                 value: _selectedExpenseType,
                 items: ExpenseType.values.map((type) {
+                  String label;
+                  switch (type) {
+                    case ExpenseType.food:
+                      label = 'Food/Snacks';
+                      break;
+                    case ExpenseType.vehicle:
+                      label = 'Vehicle Repair/Maintenance';
+                      break;
+                    case ExpenseType.fuel:
+                      label = 'Fuel';
+                      break;
+                    case ExpenseType.other:
+                      label = 'Other Expenses';
+                      break;
+                    case ExpenseType.allowance:
+                      label = 'Daily Allowance';
+                      break;
+                  }
                   return DropdownMenuItem(
                     value: type,
-                    child: Text(type.toString().split('.').last),
+                    child: Text(label),
                   );
                 }).toList(),
                 onChanged: (ExpenseType? value) {

@@ -69,7 +69,7 @@ class _ListExpensesState extends State<ListExpenses> {
                         itemBuilder: (context, index) {
                           final expense = _expenses[index];
                           return ListTile(
-                            title: Text('${expense.expenseType} - ₹${expense.amount}'),
+                            title: Text('[1m' + _expenseTypeLabel(expense.expenseType) + '\u001b[0m - ₹${expense.amount}'),
                             subtitle: Text(expense.description ?? ''),
                           );
                         },
@@ -112,5 +112,20 @@ class _ListExpensesState extends State<ListExpenses> {
       (sum, expense) => sum + expense.amount,
     );
     return total.toStringAsFixed(2);
+  }
+
+  String _expenseTypeLabel(ExpenseType type) {
+    switch (type) {
+      case ExpenseType.food:
+        return 'Food/Snacks';
+      case ExpenseType.vehicle:
+        return 'Vehicle Repair/Maintenance';
+      case ExpenseType.fuel:
+        return 'Fuel';
+      case ExpenseType.other:
+        return 'Other Expenses';
+      case ExpenseType.allowance:
+        return 'Daily Allowance';
+    }
   }
 }

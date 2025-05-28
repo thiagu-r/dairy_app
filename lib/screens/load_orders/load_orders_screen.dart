@@ -7,8 +7,14 @@ import '../../models/route_model.dart';
 import '../../widgets/loading_indicator.dart';
 import '../../widgets/error_message.dart';
 import '../../models/loading_order.dart';
+import '../../models/denomination.dart';
+import '../../models/expense.dart';
+import '../../models/broken_order.dart';
+import '../../models/return_order.dart';
+import '../../models/delivery_order.dart';
 import '../../services/offline_storage_service.dart';
 import 'package:hive/hive.dart';
+import '../../models/public_sale.dart';
 
 class LoadOrdersScreen extends StatefulWidget {
   @override
@@ -121,6 +127,42 @@ class _LoadOrdersScreenState extends State<LoadOrdersScreen> {
           final loadingOrder = LoadingOrder.fromJson(loadingOrderCheck);
           await _storageService.storeLoadingOrder(loadingOrder);
 
+          // Clear all related data before fetching delivery orders
+          await Future.wait([
+            Hive.openBox<LoadingOrder>('loadingOrders').then((box) => box.clear()),
+            Hive.openBox<Denomination>('denominations').then((box) => box.clear()),
+            Hive.openBox<Expense>('expenses').then((box) => box.clear()),
+            Hive.openBox<BrokenOrder>('brokenOrders').then((box) => box.clear()),
+            Hive.openBox<ReturnOrder>('returnOrders').then((box) => box.clear()),
+            Hive.openBox<DeliveryOrder>('deliveryOrders').then((box) => box.clear()),
+            Hive.openBox<PublicSale>('publicSales').then((box) => box.clear()),
+          ]);
+
+          // Store the newly synced loading order
+          await _storageService.storeLoadingOrder(loadingOrder);
+
+          // Fetch and store delivery orders after syncing loading order
+          try {
+            final deliveryOrders = await _apiService.getDeliveryOrders(
+              loadingOrder.loadingDate,
+              loadingOrder.route,
+            );
+            await _storageService.storeDeliveryOrders(deliveryOrders);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Delivery orders fetched and stored successfully'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          } catch (e) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Failed to fetch delivery orders: ' + e.toString()),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Loading order synced successfully'),
@@ -183,6 +225,42 @@ class _LoadOrdersScreenState extends State<LoadOrdersScreen> {
         final loadingOrder = LoadingOrder.fromJson(loadingOrderCheck);
         await _storageService.storeLoadingOrder(loadingOrder);
 
+        // Clear all related data before fetching delivery orders
+        await Future.wait([
+          Hive.openBox<LoadingOrder>('loadingOrders').then((box) => box.clear()),
+          Hive.openBox<Denomination>('denominations').then((box) => box.clear()),
+          Hive.openBox<Expense>('expenses').then((box) => box.clear()),
+          Hive.openBox<BrokenOrder>('brokenOrders').then((box) => box.clear()),
+          Hive.openBox<ReturnOrder>('returnOrders').then((box) => box.clear()),
+          Hive.openBox<DeliveryOrder>('deliveryOrders').then((box) => box.clear()),
+          Hive.openBox<PublicSale>('publicSales').then((box) => box.clear()),
+        ]);
+
+        // Store the newly synced loading order
+        await _storageService.storeLoadingOrder(loadingOrder);
+
+        // Fetch and store delivery orders after creating loading order
+        try {
+          final deliveryOrders = await _apiService.getDeliveryOrders(
+            loadingOrder.loadingDate,
+            loadingOrder.route,
+          );
+          await _storageService.storeDeliveryOrders(deliveryOrders);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Delivery orders fetched and stored successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } catch (e) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to fetch delivery orders: ' + e.toString()),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+
         setState(() => _isLoading = false);
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -215,6 +293,42 @@ class _LoadOrdersScreenState extends State<LoadOrdersScreen> {
       if (response['success'] == true && response['loading_order'] != null) {
         final loadingOrder = LoadingOrder.fromJson(response['loading_order']);
         await _storageService.storeLoadingOrder(loadingOrder);
+
+        // Clear all related data before fetching delivery orders
+        await Future.wait([
+          Hive.openBox<LoadingOrder>('loadingOrders').then((box) => box.clear()),
+          Hive.openBox<Denomination>('denominations').then((box) => box.clear()),
+          Hive.openBox<Expense>('expenses').then((box) => box.clear()),
+          Hive.openBox<BrokenOrder>('brokenOrders').then((box) => box.clear()),
+          Hive.openBox<ReturnOrder>('returnOrders').then((box) => box.clear()),
+          Hive.openBox<DeliveryOrder>('deliveryOrders').then((box) => box.clear()),
+          Hive.openBox<PublicSale>('publicSales').then((box) => box.clear()),
+        ]);
+
+        // Store the newly created loading order
+        await _storageService.storeLoadingOrder(loadingOrder);
+
+        // Fetch and store delivery orders after creating loading order
+        try {
+          final deliveryOrders = await _apiService.getDeliveryOrders(
+            loadingOrder.loadingDate,
+            loadingOrder.route,
+          );
+          await _storageService.storeDeliveryOrders(deliveryOrders);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Delivery orders fetched and stored successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } catch (e) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to fetch delivery orders: ' + e.toString()),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
 
         setState(() => _isLoading = false);
 

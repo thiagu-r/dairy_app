@@ -5,15 +5,15 @@ part 'expense.g.dart';
 @HiveType(typeId: 17)
 enum ExpenseType {
   @HiveField(0)
-  fuel,
+  food, // Food/Snacks
   @HiveField(1)
-  maintenance,
+  vehicle, // Vehicle Repair/Maintenance
   @HiveField(2)
-  repairs,
+  fuel, // Fuel
   @HiveField(3)
-  food,
+  other, // Other Expenses
   @HiveField(4)
-  other
+  allowance, // Daily Allowance
 }
 
 @HiveType(typeId: 16)

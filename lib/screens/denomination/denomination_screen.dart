@@ -20,7 +20,9 @@ class _DenominationScreenState extends State<DenominationScreen> {
   final _50Controller = TextEditingController(text: '0');
   final _20Controller = TextEditingController(text: '0');
   final _10Controller = TextEditingController(text: '0');
-  final _coinsController = TextEditingController(text: '0');
+  final _coin1Controller = TextEditingController(text: '0');
+  final _coin2Controller = TextEditingController(text: '0');
+  final _coin5Controller = TextEditingController(text: '0');
 
   double _totalCashCollected = 0.0;
   double _totalExpenses = 0.0;
@@ -43,7 +45,9 @@ class _DenominationScreenState extends State<DenominationScreen> {
     _50Controller.dispose();
     _20Controller.dispose();
     _10Controller.dispose();
-    _coinsController.dispose();
+    _coin1Controller.dispose();
+    _coin2Controller.dispose();
+    _coin5Controller.dispose();
     super.dispose();
   }
 
@@ -61,7 +65,9 @@ class _DenominationScreenState extends State<DenominationScreen> {
         note50: int.tryParse(_50Controller.text) ?? 0,
         note20: int.tryParse(_20Controller.text) ?? 0,
         note10: int.tryParse(_10Controller.text) ?? 0,
-        coins: double.tryParse(_coinsController.text) ?? 0.0,
+        coin1: int.tryParse(_coin1Controller.text) ?? 0,
+        coin2: int.tryParse(_coin2Controller.text) ?? 0,
+        coin5: int.tryParse(_coin5Controller.text) ?? 0,
         totalCashCollected: _totalCashCollected,
         totalExpenses: _totalExpenses,
         denominationTotal: _denominationTotal,
@@ -126,7 +132,9 @@ class _DenominationScreenState extends State<DenominationScreen> {
         _50Controller.text = savedDenomination.note50.toString();
         _20Controller.text = savedDenomination.note20.toString();
         _10Controller.text = savedDenomination.note10.toString();
-        _coinsController.text = savedDenomination.coins.toString();
+        _coin1Controller.text = savedDenomination.coin1.toString();
+        _coin2Controller.text = savedDenomination.coin2.toString();
+        _coin5Controller.text = savedDenomination.coin5.toString();
       }
 
       _calculateTotals();
@@ -148,14 +156,16 @@ class _DenominationScreenState extends State<DenominationScreen> {
       (int.tryParse(_50Controller.text) ?? 0) * 50.0 +
       (int.tryParse(_20Controller.text) ?? 0) * 20.0 +
       (int.tryParse(_10Controller.text) ?? 0) * 10.0 +
-      (double.tryParse(_coinsController.text) ?? 0.0);
+      (int.tryParse(_coin5Controller.text) ?? 0) * 5.0 +
+      (int.tryParse(_coin2Controller.text) ?? 0) * 2.0 +
+      (int.tryParse(_coin1Controller.text) ?? 0) * 1.0;
 
     _difference = _denominationTotal - (_totalCashCollected - _totalExpenses);
     
     setState(() {});
   }
 
-  Widget _buildDenominationInput(String label, TextEditingController controller, {bool isCoins = false}) {
+  Widget _buildDenominationInput(String label, TextEditingController controller) {
     return Padding(
       padding: EdgeInsets.symmetric(vertical: 8),
       child: Row(
@@ -170,9 +180,7 @@ class _DenominationScreenState extends State<DenominationScreen> {
           Expanded(
             child: TextFormField(
               controller: controller,
-              keyboardType: isCoins 
-                  ? TextInputType.numberWithOptions(decimal: true)
-                  : TextInputType.number,
+              keyboardType: TextInputType.number,
               decoration: InputDecoration(
                 border: OutlineInputBorder(),
                 contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -184,7 +192,7 @@ class _DenominationScreenState extends State<DenominationScreen> {
             child: Padding(
               padding: EdgeInsets.only(left: 8),
               child: Text(
-                'Rs.${(isCoins ? double.tryParse(controller.text) ?? 0 : (int.tryParse(controller.text) ?? 0) * int.parse(label)).toStringAsFixed(2)}',
+                'Rs.${((int.tryParse(controller.text) ?? 0) * int.parse(label)).toStringAsFixed(2)}',
                 style: TextStyle(fontSize: 16),
                 textAlign: TextAlign.right,
               ),
@@ -293,7 +301,9 @@ class _DenominationScreenState extends State<DenominationScreen> {
               _buildDenominationInput('50', _50Controller),
               _buildDenominationInput('20', _20Controller),
               _buildDenominationInput('10', _10Controller),
-              _buildDenominationInput('Coins', _coinsController, isCoins: true),
+              _buildDenominationInput('5', _coin5Controller),
+              _buildDenominationInput('2', _coin2Controller),
+              _buildDenominationInput('1', _coin1Controller),
               SizedBox(height: 24),
               Card(
                 child: Padding(

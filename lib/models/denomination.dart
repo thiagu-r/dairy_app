@@ -26,24 +26,30 @@ class Denomination extends HiveObject {
   final int note10;
 
   @HiveField(7)
-  final double coins;
+  final int coin1;
 
   @HiveField(8)
-  final double totalCashCollected;
+  final int coin2;
 
   @HiveField(9)
-  final double totalExpenses;
+  final int coin5;
 
   @HiveField(10)
-  final double denominationTotal;
+  final double totalCashCollected;
 
   @HiveField(11)
-  final double difference;
+  final double totalExpenses;
 
   @HiveField(12)
-  final String localId;
+  final double denominationTotal;
 
   @HiveField(13)
+  final double difference;
+
+  @HiveField(14)
+  final String localId;
+
+  @HiveField(15)
   String syncStatus;
 
   Denomination({
@@ -54,7 +60,9 @@ class Denomination extends HiveObject {
     required this.note50,
     required this.note20,
     required this.note10,
-    required this.coins,
+    required this.coin1,
+    required this.coin2,
+    required this.coin5,
     required this.totalCashCollected,
     required this.totalExpenses,
     required this.denominationTotal,
@@ -64,29 +72,70 @@ class Denomination extends HiveObject {
   }) : this.localId = localId ?? 'mobile-den-${DateTime.now().millisecondsSinceEpoch}';
 
   List<Map<String, dynamic>> toJson() {
-    List<Map<String, dynamic>> denominations = [];
-    
-    if (note500 > 0) {
-      denominations.add({
+    return [
+      {
         'id': null,
         'denomination': 500,
         'count': note500,
         'total_amount': (500 * note500).toStringAsFixed(2),
         'local_id': '${localId}-500',
-      });
-    }
-    // Add similar blocks for other denominations
-    if (note200 > 0) {
-      denominations.add({
+      },
+      {
         'id': null,
         'denomination': 200,
         'count': note200,
         'total_amount': (200 * note200).toStringAsFixed(2),
         'local_id': '${localId}-200',
-      });
-    }
-    // Continue for other denominations...
-
-    return denominations;
+      },
+      {
+        'id': null,
+        'denomination': 100,
+        'count': note100,
+        'total_amount': (100 * note100).toStringAsFixed(2),
+        'local_id': '${localId}-100',
+      },
+      {
+        'id': null,
+        'denomination': 50,
+        'count': note50,
+        'total_amount': (50 * note50).toStringAsFixed(2),
+        'local_id': '${localId}-50',
+      },
+      {
+        'id': null,
+        'denomination': 20,
+        'count': note20,
+        'total_amount': (20 * note20).toStringAsFixed(2),
+        'local_id': '${localId}-20',
+      },
+      {
+        'id': null,
+        'denomination': 10,
+        'count': note10,
+        'total_amount': (10 * note10).toStringAsFixed(2),
+        'local_id': '${localId}-10',
+      },
+      {
+        'id': null,
+        'denomination': 5,
+        'count': coin5,
+        'total_amount': (5 * coin5).toStringAsFixed(2),
+        'local_id': '${localId}-5',
+      },
+      {
+        'id': null,
+        'denomination': 2,
+        'count': coin2,
+        'total_amount': (2 * coin2).toStringAsFixed(2),
+        'local_id': '${localId}-2',
+      },
+      {
+        'id': null,
+        'denomination': 1,
+        'count': coin1,
+        'total_amount': (1 * coin1).toStringAsFixed(2),
+        'local_id': '${localId}-1',
+      },
+    ];
   }
 }

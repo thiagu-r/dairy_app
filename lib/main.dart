@@ -83,6 +83,9 @@ void main() async {
     Hive.registerAdapter(ExpenseTypeAdapter());
   }
   
+  // Delete the denominations box before opening it (for development only!)
+  await Hive.deleteBoxFromDisk('denominations');
+
   // Open Hive boxes without clearing them
   await Future.wait([
     Hive.openBox('authBox'),
