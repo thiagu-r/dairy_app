@@ -77,7 +77,7 @@ class _SplashScreenState extends State<SplashScreen> {
               
               // App name
               Text(
-                'Dairy Delivery',
+                'Bharat Dairy',
                 style: TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.bold,

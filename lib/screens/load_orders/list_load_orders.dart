@@ -89,23 +89,57 @@ class _ListLoadOrdersState extends State<ListLoadOrders> {
                               horizontal: 16,
                               vertical: 8,
                             ),
-                            child: ListTile(
+                            child: ExpansionTile(
                               title: Text('Order #${order.orderNumber}'),
                               subtitle: Text(
                                 'Route: ${order.routeName}\nStatus: ${order.status}',
                               ),
-                              trailing: Icon(Icons.chevron_right),
-                              onTap: () {
-                                // Navigate to edit screen with this order
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => EditLoadOrder(
-                                      orderNumber: order.orderNumber,
-                                    ),
+                              children: [
+                                Padding(
+                                  padding: EdgeInsets.all(16),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text('Items:', style: Theme.of(context).textTheme.titleMedium),
+                                      SizedBox(height: 8),
+                                      ...order.items.map((item) => Padding(
+                                        padding: EdgeInsets.only(bottom: 8),
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Expanded(
+                                              flex: 2,
+                                              child: Text(item.productName),
+                                            ),
+                                            Expanded(
+                                              flex: 1,
+                                              child: Text('Qty: ${item.loadedQuantity}'),
+                                            ),
+                                            Expanded(
+                                              flex: 1,
+                                              child: Text('Rem: ${item.remainingQuantity}'),
+                                            ),
+                                          ],
+                                        ),
+                                      )).toList(),
+                                      SizedBox(height: 16),
+                                      ElevatedButton(
+                                        onPressed: () {
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) => EditLoadOrder(
+                                                orderNumber: order.orderNumber,
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                        child: Text('Edit Order'),
+                                      ),
+                                    ],
                                   ),
-                                );
-                              },
+                                ),
+                              ],
                             ),
                           );
                         },

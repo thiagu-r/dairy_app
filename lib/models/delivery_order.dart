@@ -1,127 +1,170 @@
 import 'package:hive/hive.dart';
 
+part 'delivery_order.g.dart';
+
 @HiveType(typeId: 4)
-class DeliveryOrder {
+class DeliveryOrder extends HiveObject {
   @HiveField(0)
   final int id;
 
   @HiveField(1)
-  final String orderNumber;
+  String orderNumber;
 
   @HiveField(2)
-  final int seller;
+  String deliveryDate;
 
   @HiveField(3)
-  final String sellerName;
+  int route;
 
   @HiveField(4)
-  final int route;
-
-  @HiveField(5)
   final String routeName;
 
+  @HiveField(5)
+  final String sellerName;
+
   @HiveField(6)
-  final String deliveryDate;
+  final String status;
 
   @HiveField(7)
-  String? deliveryTime;
+  List<DeliveryOrderItem> items;
 
   @HiveField(8)
-  final String totalPrice;
+  final int seller;
 
   @HiveField(9)
-  final String openingBalance;
+  String? deliveryTime;
 
   @HiveField(10)
-  String amountCollected;
+  String totalPrice;
 
   @HiveField(11)
-  String balanceAmount;
+  final String openingBalance;
 
   @HiveField(12)
-  String paymentMethod;
+  String amountCollected;
 
   @HiveField(13)
-  String status;
+  String balanceAmount;
 
   @HiveField(14)
-  String? notes;
+  String paymentMethod;
 
   @HiveField(15)
-  List<DeliveryOrderItem> items;
+  String? notes;
 
   @HiveField(16)
   String syncStatus;
 
+  @HiveField(17)
+  String? actualDeliveryDate;
+
+  @HiveField(18)
+  String? actualDeliveryTime;
+
+  @HiveField(19)
+  String localId;
+
+  @HiveField(20)
+  String totalQuantity;
+
   DeliveryOrder({
     required this.id,
     required this.orderNumber,
-    required this.seller,
-    required this.sellerName,
+    required this.deliveryDate,
     required this.route,
     required this.routeName,
-    required this.deliveryDate,
-    this.deliveryTime,
-    required this.totalPrice,
-    required this.openingBalance,
-    required this.amountCollected,
-    required this.balanceAmount,
-    required this.paymentMethod,
+    required this.sellerName,
     required this.status,
-    this.notes,
     required this.items,
-    required this.syncStatus,
-  });
+    required this.seller,
+    this.deliveryTime,
+    this.totalPrice = "0.00",
+    required this.openingBalance,
+    this.amountCollected = "0.00",
+    required this.balanceAmount,
+    this.paymentMethod = "cash",
+    this.notes,
+    this.syncStatus = "pending",
+    this.actualDeliveryDate,
+    this.actualDeliveryTime,
+    String? localId,
+    this.totalQuantity = "0.00",
+  }) : this.localId = localId ?? 'mobile-do-${DateTime.now().millisecondsSinceEpoch}';
+
+  void updateTotalPrice() {
+    double total = 0.0;
+    for (var item in items) {
+      item.calculateTotalPrice();
+      total += double.parse(item.totalPrice);
+    }
+    totalPrice = total.toStringAsFixed(2);
+    updateBalanceAmount();
+  }
+
+  void updateBalanceAmount() {
+    double balance = double.parse(totalPrice) - double.parse(amountCollected);
+    balanceAmount = balance.toStringAsFixed(2);
+  }
+
+  void calculateTotalQuantity() {
+    double total = 0;
+    for (var item in items) {
+      total += double.parse(item.deliveredQuantity);
+    }
+    totalQuantity = total.toStringAsFixed(3);
+  }
 
   factory DeliveryOrder.fromJson(Map<String, dynamic> json) {
     return DeliveryOrder(
-      id: json['id'],
-      orderNumber: json['order_number'],
-      seller: json['seller'],
-      sellerName: json['seller_name'],
-      route: json['route'],
-      routeName: json['route_name'],
-      deliveryDate: json['delivery_date'],
-      deliveryTime: json['delivery_time'],
-      totalPrice: json['total_price'],
-      openingBalance: json['opening_balance'],
-      amountCollected: json['amount_collected'],
-      balanceAmount: json['balance_amount'],
-      paymentMethod: json['payment_method'],
-      status: json['status'],
-      notes: json['notes'],
-      items: (json['items'] as List)
-          .map((item) => DeliveryOrderItem.fromJson(item))
+      id: json['id'] is int ? json['id'] : int.parse(json['id'].toString()),
+      orderNumber: json['order_number']?.toString() ?? '',
+      deliveryDate: json['delivery_date']?.toString() ?? '',
+      route: json['route'] is int ? json['route'] : int.parse(json['route'].toString()),
+      routeName: json['route_name']?.toString() ?? '',
+      sellerName: json['seller_name']?.toString() ?? '',
+      status: json['status']?.toString() ?? '',
+      seller: json['seller'] is int ? json['seller'] : int.parse(json['seller'].toString()),
+      deliveryTime: json['delivery_time']?.toString(),
+      totalPrice: json['total_price']?.toString() ?? "0.00",
+      openingBalance: json['opening_balance']?.toString() ?? "0.00",
+      amountCollected: json['amount_collected']?.toString() ?? "0.00",
+      balanceAmount: json['balance_amount']?.toString() ?? "0.00",
+      paymentMethod: json['payment_method']?.toString() ?? "cash",
+      notes: json['notes']?.toString(),
+      syncStatus: json['sync_status']?.toString() ?? "pending",
+      items: (json['items'] as List? ?? [])
+          .map((item) => DeliveryOrderItem.fromJson(item as Map<String, dynamic>))
           .toList(),
-      syncStatus: json['sync_status'] ?? 'pending',
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'order_number': orderNumber,
-      'seller': seller,
-      'seller_name': sellerName,
-      'route': route,
-      'route_name': routeName,
-      'delivery_date': deliveryDate,
-      'delivery_time': deliveryTime,
-      'total_price': totalPrice,
-      'opening_balance': openingBalance,
-      'amount_collected': amountCollected,
-      'balance_amount': balanceAmount,
-      'payment_method': paymentMethod,
-      'status': status,
-      'notes': notes,
-      'items': items.map((item) => item.toJson()).toList(),
-      'sync_status': syncStatus,
-    };
-  }
+  Map<String, dynamic> toJson() => {
+    'id': id,  // Changed from 'id': null to include the original ID
+    'order_number': orderNumber,
+    'delivery_date': deliveryDate,
+    'route': route,
+    'route_name': routeName,
+    'seller_name': sellerName,
+    'status': status,
+    'seller': seller,
+    'delivery_time': deliveryTime,
+    'total_price': totalPrice,
+    'opening_balance': openingBalance,
+    'amount_collected': amountCollected,
+    'balance_amount': balanceAmount,
+    'payment_method': paymentMethod,
+    'notes': notes,
+    'sync_status': syncStatus,
+    'actual_delivery_date': actualDeliveryDate ?? deliveryDate,
+    'actual_delivery_time': actualDeliveryTime ?? deliveryTime,
+    'local_id': localId,
+    'total_quantity': totalQuantity,
+    'items': items.map((item) => item.toJson()).toList(),
+  };
 }
 
 @HiveType(typeId: 5)
-class DeliveryOrderItem {
+class DeliveryOrderItem extends HiveObject {
   @HiveField(0)
   final int id;
 
@@ -132,13 +175,13 @@ class DeliveryOrderItem {
   final String productName;
 
   @HiveField(3)
-  final String orderedQuantity;
+  String orderedQuantity;
 
   @HiveField(4)
-  String extraQuantity;
+  String deliveredQuantity;
 
   @HiveField(5)
-  String deliveredQuantity;
+  String extraQuantity;
 
   @HiveField(6)
   final String unitPrice;
@@ -151,150 +194,39 @@ class DeliveryOrderItem {
     required this.product,
     required this.productName,
     required this.orderedQuantity,
-    required this.extraQuantity,
     required this.deliveredQuantity,
+    this.extraQuantity = '0.000',
     required this.unitPrice,
     required this.totalPrice,
   });
 
+  void calculateTotalPrice() {
+    double delivered = double.parse(deliveredQuantity);
+    double price = double.parse(unitPrice);
+    totalPrice = (delivered * price).toStringAsFixed(2);
+  }
+
   factory DeliveryOrderItem.fromJson(Map<String, dynamic> json) {
     return DeliveryOrderItem(
-      id: json['id'],
-      product: json['product'],
-      productName: json['product_name'],
-      orderedQuantity: json['ordered_quantity'],
-      extraQuantity: json['extra_quantity'],
-      deliveredQuantity: json['delivered_quantity'],
-      unitPrice: json['unit_price'],
-      totalPrice: json['total_price'],
+      id: json['id'] is int ? json['id'] : int.parse(json['id'].toString()),
+      product: json['product'] is int ? json['product'] : int.parse(json['product'].toString()),
+      productName: json['product_name']?.toString() ?? '',
+      orderedQuantity: json['ordered_quantity']?.toString() ?? "0.000",
+      deliveredQuantity: json['delivered_quantity']?.toString() ?? "0.000",
+      extraQuantity: json['extra_quantity']?.toString() ?? "0.000",
+      unitPrice: json['unit_price']?.toString() ?? "0.00",
+      totalPrice: json['total_price']?.toString() ?? "0.00",
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'product': product,
-      'product_name': productName,
-      'ordered_quantity': orderedQuantity,
-      'extra_quantity': extraQuantity,
-      'delivered_quantity': deliveredQuantity,
-      'unit_price': unitPrice,
-      'total_price': totalPrice,
-    };
-  }
-}
-
-class DeliveryOrderAdapter extends TypeAdapter<DeliveryOrder> {
-  @override
-  final int typeId = 4;
-
-  @override
-  DeliveryOrder read(BinaryReader reader) {
-    final numOfFields = reader.readByte();
-    final fields = <int, dynamic>{
-      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
-    };
-    return DeliveryOrder(
-      id: fields[0] as int,
-      orderNumber: fields[1] as String,
-      seller: fields[2] as int,
-      sellerName: fields[3] as String,
-      route: fields[4] as int,
-      routeName: fields[5] as String,
-      deliveryDate: fields[6] as String,
-      deliveryTime: fields[7] as String?,
-      totalPrice: fields[8] as String,
-      openingBalance: fields[9] as String,
-      amountCollected: fields[10] as String,
-      balanceAmount: fields[11] as String,
-      paymentMethod: fields[12] as String,
-      status: fields[13] as String,
-      notes: fields[14] as String?,
-      items: (fields[15] as List).cast<DeliveryOrderItem>(),
-      syncStatus: fields[16] as String,
-    );
-  }
-
-  @override
-  void write(BinaryWriter writer, DeliveryOrder obj) {
-    writer.writeByte(17);
-    writer.writeByte(0);
-    writer.write(obj.id);
-    writer.writeByte(1);
-    writer.write(obj.orderNumber);
-    writer.writeByte(2);
-    writer.write(obj.seller);
-    writer.writeByte(3);
-    writer.write(obj.sellerName);
-    writer.writeByte(4);
-    writer.write(obj.route);
-    writer.writeByte(5);
-    writer.write(obj.routeName);
-    writer.writeByte(6);
-    writer.write(obj.deliveryDate);
-    writer.writeByte(7);
-    writer.write(obj.deliveryTime);
-    writer.writeByte(8);
-    writer.write(obj.totalPrice);
-    writer.writeByte(9);
-    writer.write(obj.openingBalance);
-    writer.writeByte(10);
-    writer.write(obj.amountCollected);
-    writer.writeByte(11);
-    writer.write(obj.balanceAmount);
-    writer.writeByte(12);
-    writer.write(obj.paymentMethod);
-    writer.writeByte(13);
-    writer.write(obj.status);
-    writer.writeByte(14);
-    writer.write(obj.notes);
-    writer.writeByte(15);
-    writer.write(obj.items);
-    writer.writeByte(16);
-    writer.write(obj.syncStatus);
-  }
-}
-
-class DeliveryOrderItemAdapter extends TypeAdapter<DeliveryOrderItem> {
-  @override
-  final int typeId = 5;
-
-  @override
-  DeliveryOrderItem read(BinaryReader reader) {
-    final numOfFields = reader.readByte();
-    final fields = <int, dynamic>{
-      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
-    };
-    return DeliveryOrderItem(
-      id: fields[0] as int,
-      product: fields[1] as int,
-      productName: fields[2] as String,
-      orderedQuantity: fields[3] as String,
-      extraQuantity: fields[4] as String,
-      deliveredQuantity: fields[5] as String,
-      unitPrice: fields[6] as String,
-      totalPrice: fields[7] as String,
-    );
-  }
-
-  @override
-  void write(BinaryWriter writer, DeliveryOrderItem obj) {
-    writer.writeByte(8);
-    writer.writeByte(0);
-    writer.write(obj.id);
-    writer.writeByte(1);
-    writer.write(obj.product);
-    writer.writeByte(2);
-    writer.write(obj.productName);
-    writer.writeByte(3);
-    writer.write(obj.orderedQuantity);
-    writer.writeByte(4);
-    writer.write(obj.extraQuantity);
-    writer.writeByte(5);
-    writer.write(obj.deliveredQuantity);
-    writer.writeByte(6);
-    writer.write(obj.unitPrice);
-    writer.writeByte(7);
-    writer.write(obj.totalPrice);
-  }
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'product': product,
+    'product_name': productName,
+    'ordered_quantity': orderedQuantity,
+    'extra_quantity': extraQuantity,
+    'delivered_quantity': deliveredQuantity,
+    'unit_price': unitPrice,
+    'total_price': totalPrice,
+  };
 }

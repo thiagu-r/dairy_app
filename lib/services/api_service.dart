@@ -5,15 +5,19 @@ import 'package:http/http.dart' as http;
 import 'package:hive/hive.dart';
 import '../config/api_config.dart';
 import '../models/route_model.dart';
+import '../models/delivery_order.dart';
+import '../models/broken_order.dart';
+import '../services/offline_storage_service.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
 
 class ApiService {
   final String baseUrl = ApiConfig.baseUrl;
   
   // Get auth token from storage
   Future<String?> _getToken() async {
-    final authBox = Hive.box('authBox');
-    final accessToken = authBox.get('accessToken');  // Changed to directly get accessToken
-    return accessToken;
+    final authBox = await Hive.openBox('authBox');
+    return authBox.get('accessToken');
   }
   
   // Create headers with auth token
@@ -22,7 +26,11 @@ class ApiService {
     if (token == null) {
       throw Exception('No authentication token found');
     }
-    return ApiConfig.getHeaders(token: token);
+    
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    };
   }
   
   // Login
@@ -121,6 +129,138 @@ class ApiService {
     } catch (e) {
       print('Error creating loading order: $e');
       throw Exception('Failed to create loading order: $e');
+    }
+  }
+
+  Future<List<DeliveryOrder>> getDeliveryOrders(String deliveryDate, int routeId) async {
+    try {
+      final headers = await _getHeaders();
+      
+      final uri = Uri.parse('$baseUrl/orders/delivery').replace(
+        queryParameters: {
+          'delivery_date': deliveryDate,
+          'route': routeId.toString(),
+        },
+      );
+
+      final response = await http.get(uri, headers: headers);
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        final orders = data.map((json) {
+          final order = DeliveryOrder.fromJson(json);
+          // These fields should now be modifiable
+          order.route = routeId;
+          order.deliveryDate = deliveryDate;
+          return order;
+        }).toList();
+        
+        return orders;
+      } else {
+        final errorMessage = response.body.isNotEmpty 
+            ? json.decode(response.body)['message'] ?? 'Failed to fetch delivery orders'
+            : 'Failed to fetch delivery orders';
+        throw Exception(errorMessage);
+      }
+    } catch (e) {
+      print('Error fetching delivery orders: $e');
+      throw Exception('Failed to fetch delivery orders: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> checkLoadingOrder(int routeId, String deliveryDate) async {
+    try {
+      final headers = await _getHeaders();
+      final response = await http.get(
+        Uri.parse('$baseUrl/loading-orders/check-loading-order/?route=$routeId&delivery_date=$deliveryDate'),
+        headers: headers,
+      );
+      
+      print('Check Loading Order Response - Status Code: ${response.statusCode}');
+      print('Check Loading Order Response - Body: ${response.body}');
+      
+      if (response.statusCode == 200) {
+        return json.decode(response.body);
+      } else {
+        throw Exception('Server returned ${response.statusCode}: ${response.body}');
+      }
+    } catch (e) {
+      print('Error checking loading order: $e');
+      throw Exception('Failed to check loading order: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> syncData(Map<String, dynamic> payload) async {
+    try {
+      final headers = await _getHeaders();
+      
+      // Debug: Print original payload structure
+      print('\n=== SYNC PAYLOAD DEBUG ===');
+      const JsonEncoder encoder = JsonEncoder.withIndent('  ');
+      
+      // Create a formatted string of the payload
+      String prettyJson = encoder.convert(payload);
+      
+      // Print payload in chunks for better readability
+      print('\nFull Sync Payload:');
+      const int chunkSize = 1000;
+      for (var i = 0; i < prettyJson.length; i += chunkSize) {
+        var end = (i + chunkSize < prettyJson.length) ? i + chunkSize : prettyJson.length;
+        print(prettyJson.substring(i, end));
+        // Add a small delay between chunks for better console readability
+        await Future.delayed(Duration(milliseconds: 100));
+      }
+      
+      // Save payload to file for debugging (optional)
+      try {
+        final directory = await getApplicationDocumentsDirectory();
+        final file = File('${directory.path}/last_sync_payload.json');
+        await file.writeAsString(prettyJson);
+        print('\nPayload saved to: ${file.path}');
+      } catch (e) {
+        print('Failed to save payload to file: $e');
+      }
+
+      final response = await http.post(
+        Uri.parse('$baseUrl${ApiConfig.sync}'),
+        headers: headers,
+        body: json.encode(payload),
+      );
+
+      print('\n=== API RESPONSE ===');
+      print('Status Code: ${response.statusCode}');
+      print('Response Body:');
+      if (response.body.isNotEmpty) {
+        try {
+          String prettyResponse = encoder.convert(json.decode(response.body));
+          print(prettyResponse);
+        } catch (e) {
+          print(response.body);
+        }
+      }
+
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        return {
+          'success': true,
+          'data': responseData,
+        };
+      } else {
+        final errorData = json.decode(response.body);
+        return {
+          'success': false,
+          'message': errorData['detail'] ?? 'Sync failed with status ${response.statusCode}',
+        };
+      }
+    } catch (e, stackTrace) {
+      print('\n=== ERROR DETAILS ===');
+      print('Error: $e');
+      print('Stack trace:');
+      print(stackTrace.toString().split('\n').take(10).join('\n')); // Print first 10 lines of stack trace
+      return {
+        'success': false,
+        'message': 'Network error: $e',
+      };
     }
   }
 }

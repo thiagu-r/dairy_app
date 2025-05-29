@@ -9,6 +9,7 @@ class ApiConfig {
   static const String routes = '/routes/';
   static const String checkPurchaseOrder = '/loading-orders/check-purchase-order';
   static const String createLoadingOrder = '/loading-orders/create/';
+  static const String sync = '/sync/';
   
   // Headers
   static Map<String, String> getHeaders({String? token}) {

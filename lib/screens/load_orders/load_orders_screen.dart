@@ -6,6 +6,15 @@ import '../../services/api_service.dart';
 import '../../models/route_model.dart';
 import '../../widgets/loading_indicator.dart';
 import '../../widgets/error_message.dart';
+import '../../models/loading_order.dart';
+import '../../models/denomination.dart';
+import '../../models/expense.dart';
+import '../../models/broken_order.dart';
+import '../../models/return_order.dart';
+import '../../models/delivery_order.dart';
+import '../../services/offline_storage_service.dart';
+import 'package:hive/hive.dart';
+import '../../models/public_sale.dart';
 
 class LoadOrdersScreen extends StatefulWidget {
   @override
@@ -14,6 +23,7 @@ class LoadOrdersScreen extends StatefulWidget {
 
 class _LoadOrdersScreenState extends State<LoadOrdersScreen> {
   final ApiService _apiService = ApiService();
+  final OfflineStorageService _storageService = OfflineStorageService();
   final _formKey = GlobalKey<FormState>();
   final _notesController = TextEditingController();
   final _loadingTimeController = TextEditingController();
@@ -84,6 +94,88 @@ class _LoadOrdersScreenState extends State<LoadOrdersScreen> {
     final formattedDate = DateFormat('yyyy-MM-dd').format(_selectedDate);
     
     try {
+      // First check if loading order exists
+      final loadingOrderCheck = await _apiService.checkLoadingOrder(
+        _selectedRoute!.id,
+        formattedDate,
+      );
+
+      // Check if loading order exists and has actual order data
+      if (loadingOrderCheck != null && 
+          loadingOrderCheck is! Map<String, dynamic> || 
+          (loadingOrderCheck is Map<String, dynamic> && loadingOrderCheck['exists'] != false)) {
+        // Loading order exists, ask user to store it
+        final shouldStore = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text('Loading Order Exists'),
+            content: Text('A loading order already exists for this route and date. Would you like to sync it to your device?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: Text('Sync'),
+              ),
+            ],
+          ),
+        ) ?? false;
+
+        if (shouldStore) {
+          final loadingOrder = LoadingOrder.fromJson(loadingOrderCheck);
+          await _storageService.storeLoadingOrder(loadingOrder);
+
+          // Clear all related data before fetching delivery orders
+          await Future.wait([
+            Hive.openBox<LoadingOrder>('loadingOrders').then((box) => box.clear()),
+            Hive.openBox<Denomination>('denominations').then((box) => box.clear()),
+            Hive.openBox<Expense>('expenses').then((box) => box.clear()),
+            Hive.openBox<BrokenOrder>('brokenOrders').then((box) => box.clear()),
+            Hive.openBox<ReturnOrder>('returnOrders').then((box) => box.clear()),
+            Hive.openBox<DeliveryOrder>('deliveryOrders').then((box) => box.clear()),
+            Hive.openBox<PublicSale>('publicSales').then((box) => box.clear()),
+          ]);
+
+          // Store the newly synced loading order
+          await _storageService.storeLoadingOrder(loadingOrder);
+
+          // Fetch and store delivery orders after syncing loading order
+          try {
+            final deliveryOrders = await _apiService.getDeliveryOrders(
+              loadingOrder.loadingDate,
+              loadingOrder.route,
+            );
+            await _storageService.storeDeliveryOrders(deliveryOrders);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Delivery orders fetched and stored successfully'),
+                backgroundColor: Colors.green,
+              ),
+            );
+          } catch (e) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Failed to fetch delivery orders: ' + e.toString()),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Loading order synced successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+
+          Navigator.pop(context);
+          return;
+        }
+      }
+
+      // If no loading order exists or user cancelled, check purchase order
       final data = await _apiService.checkPurchaseOrder(
         _selectedRoute!.id, 
         formattedDate
@@ -106,56 +198,170 @@ class _LoadOrdersScreenState extends State<LoadOrdersScreen> {
     } catch (e) {
       setState(() {
         _isPurchaseOrderLoading = false;
-        _errorMessage = 'Failed to check purchase order: $e';
+        _errorMessage = 'Failed to check orders: $e';
       });
     }
   }
   
-  Future<void> _createLoadingOrder() async {
+  Future<void> _checkAndCreateLoadingOrder() async {
     if (_formKey.currentState?.validate() != true || _purchaseOrderId == null) {
       return;
     }
-    
+
     setState(() {
       _isLoading = true;
       _errorMessage = '';
     });
-    
-    final payload = {
-      "route": _selectedRoute!.id,
-      "loading_date": DateFormat('yyyy-MM-dd').format(_selectedDate),
-      "loading_time": _loadingTimeController.text,
-      "purchase_order_id": _purchaseOrderId,
-      "notes": _notesController.text,
-      "crates": int.tryParse(_cratesController.text) ?? 0,
-    };
-    
+
     try {
+      // First check if loading order exists
+      final loadingOrderCheck = await _apiService.checkLoadingOrder(
+        _selectedRoute!.id,
+        DateFormat('yyyy-MM-dd').format(_selectedDate),
+      );
+
+      if (loadingOrderCheck != null && loadingOrderCheck['exists'] != false) {
+        // Loading order exists, store it locally
+        final loadingOrder = LoadingOrder.fromJson(loadingOrderCheck);
+        await _storageService.storeLoadingOrder(loadingOrder);
+
+        // Clear all related data before fetching delivery orders
+        await Future.wait([
+          Hive.openBox<LoadingOrder>('loadingOrders').then((box) => box.clear()),
+          Hive.openBox<Denomination>('denominations').then((box) => box.clear()),
+          Hive.openBox<Expense>('expenses').then((box) => box.clear()),
+          Hive.openBox<BrokenOrder>('brokenOrders').then((box) => box.clear()),
+          Hive.openBox<ReturnOrder>('returnOrders').then((box) => box.clear()),
+          Hive.openBox<DeliveryOrder>('deliveryOrders').then((box) => box.clear()),
+          Hive.openBox<PublicSale>('publicSales').then((box) => box.clear()),
+        ]);
+
+        // Store the newly synced loading order
+        await _storageService.storeLoadingOrder(loadingOrder);
+
+        // Fetch and store delivery orders after creating loading order
+        try {
+          final deliveryOrders = await _apiService.getDeliveryOrders(
+            loadingOrder.loadingDate,
+            loadingOrder.route,
+          );
+          await _storageService.storeDeliveryOrders(deliveryOrders);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Delivery orders fetched and stored successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } catch (e) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to fetch delivery orders: ' + e.toString()),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+
+        setState(() => _isLoading = false);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Loading order already exists and has been synced'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        Navigator.pop(context);
+        return;
+      }
+
+      // Validate crates input
+      final cratesValue = _cratesController.text.trim();
+      final crates = cratesValue.isEmpty ? 0 : int.tryParse(cratesValue) ?? 0;
+
+      // If no existing loading order, create new one
+      final payload = {
+        "route": _selectedRoute!.id,
+        "loading_date": DateFormat('yyyy-MM-dd').format(_selectedDate),
+        "loading_time": _loadingTimeController.text,
+        "purchase_order_id": _purchaseOrderId,
+        "notes": _notesController.text.trim(),
+        "crates": crates,
+      };
+
       final response = await _apiService.createLoadingOrder(payload);
       
-      setState(() {
-        _isLoading = false;
-      });
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(response['message'] ?? 'Loading order created successfully'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      
-      // Clear form
-      _notesController.clear();
-      _cratesController.clear();
-      _purchaseOrderData = null;
-      _purchaseOrderId = null;
-      
+      if (response['success'] == true && response['loading_order'] != null) {
+        final loadingOrder = LoadingOrder.fromJson(response['loading_order']);
+        await _storageService.storeLoadingOrder(loadingOrder);
+
+        // Clear all related data before fetching delivery orders
+        await Future.wait([
+          Hive.openBox<LoadingOrder>('loadingOrders').then((box) => box.clear()),
+          Hive.openBox<Denomination>('denominations').then((box) => box.clear()),
+          Hive.openBox<Expense>('expenses').then((box) => box.clear()),
+          Hive.openBox<BrokenOrder>('brokenOrders').then((box) => box.clear()),
+          Hive.openBox<ReturnOrder>('returnOrders').then((box) => box.clear()),
+          Hive.openBox<DeliveryOrder>('deliveryOrders').then((box) => box.clear()),
+          Hive.openBox<PublicSale>('publicSales').then((box) => box.clear()),
+        ]);
+
+        // Store the newly created loading order
+        await _storageService.storeLoadingOrder(loadingOrder);
+
+        // Fetch and store delivery orders after creating loading order
+        try {
+          final deliveryOrders = await _apiService.getDeliveryOrders(
+            loadingOrder.loadingDate,
+            loadingOrder.route,
+          );
+          await _storageService.storeDeliveryOrders(deliveryOrders);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Delivery orders fetched and stored successfully'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } catch (e) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to fetch delivery orders: ' + e.toString()),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+
+        setState(() => _isLoading = false);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(response['message'] ?? 'Loading order created successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        _clearForm();
+        Navigator.pop(context);
+
+        // After successful loading order creation/retrieval
+        final ordersBox = await Hive.openBox('ordersBox');
+        await ordersBox.put('currentLoadingOrderId', loadingOrder.id);
+        await ordersBox.put('currentOrderNumber', loadingOrder.orderNumber);
+      } else {
+        throw Exception(response['message'] ?? 'Failed to create loading order');
+      }
     } catch (e) {
       setState(() {
         _isLoading = false;
         _errorMessage = 'Failed to create loading order: $e';
       });
     }
+  }
+
+  void _clearForm() {
+    _notesController.clear();
+    _cratesController.clear();
+    _purchaseOrderData = null;
+    _purchaseOrderId = null;
   }
   
   Future<void> _selectDate(BuildContext context) async {
@@ -338,11 +544,15 @@ class _LoadOrdersScreenState extends State<LoadOrdersScreen> {
                             decoration: InputDecoration(
                               labelText: 'Number of Crates',
                               border: OutlineInputBorder(),
+                              hintText: '0',
                             ),
                             keyboardType: TextInputType.number,
                             validator: (value) {
                               if (value == null || value.isEmpty) {
-                                return 'Please enter number of crates';
+                                return null; // Allow empty value, will default to 0
+                              }
+                              if (int.tryParse(value) == null) {
+                                return 'Please enter a valid number';
                               }
                               return null;
                             },
@@ -363,7 +573,7 @@ class _LoadOrdersScreenState extends State<LoadOrdersScreen> {
                           
                           // Submit Button
                           ElevatedButton.icon(
-                            onPressed: _isLoading ? null : _createLoadingOrder,
+                            onPressed: _isLoading ? null : _checkAndCreateLoadingOrder,
                             icon: Icon(Icons.check_circle),
                             label: Text('Create Loading Order'),
                             style: ElevatedButton.styleFrom(

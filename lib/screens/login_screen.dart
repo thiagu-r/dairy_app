@@ -100,7 +100,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   
                   // App name
                   Text(
-                    'Dairy Delivery',
+                    'Bharat Dairy',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 28,

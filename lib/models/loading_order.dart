@@ -1,21 +1,23 @@
 import 'package:hive/hive.dart';
 
-@HiveType(typeId: 2)
-class LoadingOrder {
+part 'loading_order.g.dart';
+
+@HiveType(typeId: 1)
+class LoadingOrder extends HiveObject {
   @HiveField(0)
-  final int id;
+  final String id;
 
   @HiveField(1)
   final String orderNumber;
 
   @HiveField(2)
-  final int route;
+  final String loadingDate;
 
   @HiveField(3)
-  final String routeName;
+  final int route;
 
   @HiveField(4)
-  final String loadingDate;
+  final String routeName;
 
   @HiveField(5)
   final String status;
@@ -26,62 +28,72 @@ class LoadingOrder {
   LoadingOrder({
     required this.id,
     required this.orderNumber,
+    required this.loadingDate,
     required this.route,
     required this.routeName,
-    required this.loadingDate,
     required this.status,
     required this.items,
   });
 
   factory LoadingOrder.fromJson(Map<String, dynamic> json) {
     return LoadingOrder(
-      id: json['id'],
-      orderNumber: json['order_number'],
-      route: json['route'],
-      routeName: json['route_name'],
-      loadingDate: json['loading_date'],
-      status: json['status'],
-      items: (json['items'] as List)
-          .map((item) => LoadingOrderItem.fromJson(item))
+      id: json['id']?.toString() ?? '',
+      orderNumber: json['order_number']?.toString() ?? '',
+      loadingDate: json['loading_date']?.toString() ?? '',
+      route: json['route'] is int ? json['route'] : int.parse(json['route'].toString()),
+      routeName: json['route_name']?.toString() ?? '',
+      status: json['status']?.toString() ?? '',
+      items: (json['items'] as List? ?? [])
+          .map((item) => LoadingOrderItem.fromJson(item as Map<String, dynamic>))
           .toList(),
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'order_number': orderNumber,
-      'route': route,
-      'route_name': routeName,
-      'loading_date': loadingDate,
-      'status': status,
-      'items': items.map((item) => item.toJson()).toList(),
-    };
-  }
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'order_number': orderNumber,
+    'loading_date': loadingDate,
+    'route': route,
+    'route_name': routeName,
+    'status': status,
+    'items': items.map((item) => item.toJson()).toList(),
+  };
 }
 
-@HiveType(typeId: 3)
-class LoadingOrderItem {
+@HiveType(typeId: 2)
+class LoadingOrderItem extends HiveObject {
   @HiveField(0)
   final int id;
-
+  
   @HiveField(1)
   final int product;
-
+  
   @HiveField(2)
   final String productName;
-
+  
   @HiveField(3)
   final String purchaseOrderQuantity;
-
+  
   @HiveField(4)
   final String loadedQuantity;
-
+  
   @HiveField(5)
   final String remainingQuantity;
-
+  
   @HiveField(6)
+  final String deliveredQuantity;
+  
+  @HiveField(7)
   final String totalQuantity;
+  
+  @HiveField(8)
+  final String returnQuantity;
+  
+  @HiveField(9)
+  final String? unitPrice;
+  
+  @HiveField(10)
+  double? brokenQuantity;
 
   LoadingOrderItem({
     required this.id,
@@ -90,7 +102,11 @@ class LoadingOrderItem {
     required this.purchaseOrderQuantity,
     required this.loadedQuantity,
     required this.remainingQuantity,
+    required this.deliveredQuantity,
     required this.totalQuantity,
+    required this.returnQuantity,
+    this.unitPrice,
+    this.brokenQuantity,
   });
 
   factory LoadingOrderItem.fromJson(Map<String, dynamic> json) {
@@ -101,101 +117,23 @@ class LoadingOrderItem {
       purchaseOrderQuantity: json['purchase_order_quantity'],
       loadedQuantity: json['loaded_quantity'],
       remainingQuantity: json['remaining_quantity'],
+      deliveredQuantity: json['delivered_quantity'],
       totalQuantity: json['total_quantity'],
+      returnQuantity: json['return_quantity'],
+      unitPrice: json['unit_price'],
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'product': product,
-      'product_name': productName,
-      'purchase_order_quantity': purchaseOrderQuantity,
-      'loaded_quantity': loadedQuantity,
-      'remaining_quantity': remainingQuantity,
-      'total_quantity': totalQuantity,
-    };
-  }
-}
-
-class LoadingOrderAdapter extends TypeAdapter<LoadingOrder> {
-  @override
-  final int typeId = 2;
-
-  @override
-  LoadingOrder read(BinaryReader reader) {
-    final numOfFields = reader.readByte();
-    final fields = <int, dynamic>{
-      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
-    };
-    return LoadingOrder(
-      id: fields[0] as int,
-      orderNumber: fields[1] as String,
-      route: fields[2] as int,
-      routeName: fields[3] as String,
-      loadingDate: fields[4] as String,
-      status: fields[5] as String,
-      items: (fields[6] as List).cast<LoadingOrderItem>(),
-    );
-  }
-
-  @override
-  void write(BinaryWriter writer, LoadingOrder obj) {
-    writer.writeByte(7);
-    writer.writeByte(0);
-    writer.write(obj.id);
-    writer.writeByte(1);
-    writer.write(obj.orderNumber);
-    writer.writeByte(2);
-    writer.write(obj.route);
-    writer.writeByte(3);
-    writer.write(obj.routeName);
-    writer.writeByte(4);
-    writer.write(obj.loadingDate);
-    writer.writeByte(5);
-    writer.write(obj.status);
-    writer.writeByte(6);
-    writer.write(obj.items);
-  }
-}
-
-class LoadingOrderItemAdapter extends TypeAdapter<LoadingOrderItem> {
-  @override
-  final int typeId = 3;
-
-  @override
-  LoadingOrderItem read(BinaryReader reader) {
-    final numOfFields = reader.readByte();
-    final fields = <int, dynamic>{
-      for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
-    };
-    return LoadingOrderItem(
-      id: fields[0] as int,
-      product: fields[1] as int,
-      productName: fields[2] as String,
-      purchaseOrderQuantity: fields[3] as String,
-      loadedQuantity: fields[4] as String,
-      remainingQuantity: fields[5] as String,
-      totalQuantity: fields[6] as String,
-    );
-  }
-
-  @override
-  void write(BinaryWriter writer, LoadingOrderItem obj) {
-    writer.writeByte(7);
-    writer.writeByte(0);
-    writer.write(obj.id);
-    writer.writeByte(1);
-    writer.write(obj.product);
-    writer.writeByte(2);
-    writer.write(obj.productName);
-    writer.writeByte(3);
-    writer.write(obj.purchaseOrderQuantity);
-    writer.writeByte(4);
-    writer.write(obj.loadedQuantity);
-    writer.writeByte(5);
-    writer.write(obj.remainingQuantity);
-    writer.writeByte(6);
-    writer.write(obj.totalQuantity);
-  }
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'product': product,
+    'product_name': productName,
+    'purchase_order_quantity': purchaseOrderQuantity,
+    'loaded_quantity': loadedQuantity,
+    'remaining_quantity': remainingQuantity,
+    'delivered_quantity': deliveredQuantity,
+    'total_quantity': totalQuantity,
+    'return_quantity': returnQuantity,
+    'unit_price': unitPrice,
+  };
 }
