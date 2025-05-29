@@ -94,10 +94,12 @@ class _ListPublicSalesState extends State<ListPublicSales> {
             ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
+          // TODO: Replace 1 with the actual selected routeId from your app context or user selection
+          final int selectedRouteId = 1;
           final result = await Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => AddPublicSale(saleDate: _selectedDate),
+              builder: (context) => AddPublicSale(saleDate: _selectedDate, routeId: selectedRouteId),
             ),
           );
           if (result == true) {

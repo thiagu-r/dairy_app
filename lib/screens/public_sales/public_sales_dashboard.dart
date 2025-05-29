@@ -45,10 +45,12 @@ class PublicSalesDashboard extends StatelessWidget {
                   Colors.green,
                   () {
                     final currentDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
+                    // TODO: Replace 1 with the actual selected routeId from your app context or user selection
+                    final int selectedRouteId = 1;
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => AddPublicSale(saleDate: currentDate),
+                        builder: (context) => AddPublicSale(saleDate: currentDate, routeId: selectedRouteId),
                       ),
                     );
                   },

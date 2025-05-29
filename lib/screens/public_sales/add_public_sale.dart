@@ -7,8 +7,9 @@ import 'denomination_screen.dart';
 
 class AddPublicSale extends StatefulWidget {
   final String saleDate;
+  final int routeId;
 
-  AddPublicSale({required this.saleDate});
+  AddPublicSale({required this.saleDate, required this.routeId});
 
   @override
   _AddPublicSaleState createState() => _AddPublicSaleState();
@@ -61,9 +62,9 @@ class _AddPublicSaleState extends State<AddPublicSale> with WidgetsBindingObserv
       // Get loading order for current route and date
       final loadingOrder = await _storageService.getLoadingOrderByDateAndRoute(
         widget.saleDate,
-        // TODO: Get current route ID from somewhere
-        1, // Replace with actual route ID
+        widget.routeId,
       );
+      debugPrint('Loaded loading order: ' + (loadingOrder != null ? loadingOrder.toString() : 'null'));
 
       if (loadingOrder == null) {
         throw Exception('No loading order found for this date');
@@ -326,10 +327,16 @@ class _AddPublicSaleState extends State<AddPublicSale> with WidgetsBindingObserv
     });
   }
 
-  Future<void> _saveSale({Map<int, int>? denominations}) async {
+  Future<void> _saveSale() async {
     if (_formKey.currentState?.validate() != true || _items.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Please add at least one item')),
+      );
+      return;
+    }
+    if (_loadingOrder == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No loading order found for this date and route. Cannot save sale.')),
       );
       return;
     }
@@ -384,24 +391,8 @@ class _AddPublicSaleState extends State<AddPublicSale> with WidgetsBindingObserv
             IconButton(
               icon: Icon(Icons.save),
               onPressed: () async {
-                // On save, show denomination screen and wait for confirmation
-                if (_formKey.currentState?.validate() != true || _items.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Please add at least one item')),
-                  );
-                  return;
-                }
-                final result = await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => DenominationScreen(
-                      amount: double.tryParse(_amountCollectedController.text) ?? 0,
-                    ),
-                  ),
-                );
-                if (result != null && result is Map<int, int>) {
-                  await _saveSale(denominations: result);
-                }
+                await _saveSale();
+                // _saveSale already pops the page on success
               },
               tooltip: 'Save Sale',
             ),

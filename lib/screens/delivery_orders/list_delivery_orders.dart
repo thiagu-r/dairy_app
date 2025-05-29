@@ -110,65 +110,57 @@ class _ListDeliveryOrdersState extends State<ListDeliveryOrders> {
 
   Widget _buildOrderCard(DeliveryOrder order) {
     final bool isUpdated = order.actualDeliveryDate != null;
-    
-    // Calculate total delivered quantity
     double totalDeliveredQuantity = 0;
     for (var item in order.items) {
       totalDeliveredQuantity += double.parse(item.deliveredQuantity);
     }
-    
+
     return Card(
-      margin: EdgeInsets.symmetric(horizontal: 0, vertical: 12),
-      color: isUpdated ? Colors.green.withOpacity(0.08) : Theme.of(context).colorScheme.surfaceVariant,
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: () => _showOrderDetails(order),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-          child: Row(
-            children: [
-              Icon(Icons.store, color: Theme.of(context).colorScheme.primary, size: 32),
-              SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      order.sellerName,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: isUpdated ? Colors.green : Theme.of(context).colorScheme.onSurface,
-                      ),
-                    ),
-                    SizedBox(height: 2),
-                    Text('Order #${order.orderNumber}', style: TextStyle(fontWeight: FontWeight.w500)),
-                    Text('Quantity: ${totalDeliveredQuantity.toStringAsFixed(3)}'),
-                    Text('Amount: Rs.${order.totalPrice}', style: TextStyle(fontWeight: FontWeight.bold)),
-                    if (isUpdated)
-                      Text(
-                        'Updated on: ${order.actualDeliveryDate}',
-                        style: TextStyle(
-                          color: Colors.green,
-                          fontSize: 12,
-                        ),
-                      ),
-                  ],
+      margin: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      color: isUpdated ? Colors.green.withOpacity(0.06) : Theme.of(context).colorScheme.surfaceVariant,
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: ListTile(
+        contentPadding: EdgeInsets.symmetric(vertical: 6, horizontal: 10),
+        leading: CircleAvatar(
+          backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+          child: Icon(Icons.store, color: Theme.of(context).colorScheme.primary),
+        ),
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                order.sellerName,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: isUpdated ? Colors.green : Theme.of(context).colorScheme.onSurface,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (isUpdated)
+              Icon(Icons.check_circle, color: Colors.green, size: 18),
+          ],
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(height: 2),
+            Text('Order #${order.orderNumber}', style: TextStyle(fontWeight: FontWeight.w500)),
+            Text('Quantity: ${totalDeliveredQuantity.toStringAsFixed(3)}'),
+            Text('Amount: Rs.${order.totalPrice}', style: TextStyle(fontWeight: FontWeight.bold)),
+            if (isUpdated)
+              Text(
+                'Updated on: ${order.actualDeliveryDate}',
+                style: TextStyle(
+                  color: Colors.green,
+                  fontSize: 12,
                 ),
               ),
-              SizedBox(width: 8),
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (isUpdated)
-                    Icon(Icons.check_circle, color: Colors.green, size: 18),
-                  Icon(Icons.chevron_right, color: Theme.of(context).colorScheme.primary),
-                ],
-              ),
-            ],
-          ),
+          ],
         ),
+        trailing: Icon(Icons.chevron_right, color: Theme.of(context).colorScheme.primary),
+        onTap: () => _showOrderDetails(order),
       ),
     );
   }

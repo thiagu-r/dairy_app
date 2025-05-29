@@ -468,11 +468,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Welcome, $userName',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Theme.of(context).colorScheme.primary),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
                     'Dashboard',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
                   ),
@@ -480,14 +475,14 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ],
           ),
-          SizedBox(height: 16),
+          SizedBox(height: 8),
           Expanded(
             child: GridView.count(
               crossAxisCount: 2,
-              crossAxisSpacing: 24,
-              mainAxisSpacing: 24,
-              childAspectRatio: 1,
-              padding: EdgeInsets.only(bottom: 16),
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 1.15,
+              padding: EdgeInsets.only(bottom: 8),
               children: [
                 _buildMenuCard(
                   context: context,
@@ -585,30 +580,30 @@ class _HomeScreenState extends State<HomeScreen> {
   }) {
     return Card(
       color: Theme.of(context).colorScheme.surfaceVariant,
-      elevation: 2,
+      elevation: 1,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: InkWell(
         onTap: isLoading ? null : onTap,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(12),
         splashColor: color.withOpacity(0.1),
         highlightColor: color.withOpacity(0.05),
         child: AnimatedContainer(
           duration: Duration(milliseconds: 150),
-          padding: EdgeInsets.symmetric(vertical: 28, horizontal: 8),
+          padding: EdgeInsets.symmetric(vertical: 14, horizontal: 4),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (isLoading)
-                CircularProgressIndicator(color: color)
+                SizedBox(height: 32, width: 32, child: CircularProgressIndicator(color: color, strokeWidth: 2))
               else
-                Icon(icon, size: 44, color: color),
-              SizedBox(height: 14),
+                Icon(icon, size: 28, color: color),
+              SizedBox(height: 8),
               Text(
                 title,
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
                   color: color,
                   fontWeight: FontWeight.w600,
                 ),
