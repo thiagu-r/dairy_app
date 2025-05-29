@@ -177,25 +177,27 @@ class _DenominationScreenState extends State<DenominationScreen> {
               style: TextStyle(fontSize: 16),
             ),
           ),
-          Expanded(
+          SizedBox(
+            width: 70,
             child: TextFormField(
               controller: controller,
               keyboardType: TextInputType.number,
               decoration: InputDecoration(
-                border: OutlineInputBorder(),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                filled: true,
                 contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               ),
+              textAlign: TextAlign.center,
               onChanged: (_) => _calculateTotals(),
             ),
           ),
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(left: 8),
-              child: Text(
-                'Rs.${((int.tryParse(controller.text) ?? 0) * int.parse(label)).toStringAsFixed(2)}',
-                style: TextStyle(fontSize: 16),
-                textAlign: TextAlign.right,
-              ),
+          SizedBox(width: 12),
+          SizedBox(
+            width: 80,
+            child: Text(
+              'Rs.${((int.tryParse(controller.text) ?? 0) * int.parse(label)).toStringAsFixed(2)}',
+              style: TextStyle(fontSize: 16),
+              textAlign: TextAlign.right,
             ),
           ),
         ],
@@ -212,143 +214,120 @@ class _DenominationScreenState extends State<DenominationScreen> {
       );
     }
 
+    final differenceColor = _difference.abs() < 0.01 ? Colors.green : Colors.red;
+
     return Scaffold(
       appBar: AppBar(
         title: Text('Denomination Entry'),
-      ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Card(
-                child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Summary',
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      SizedBox(height: 16),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Cash Collection',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text(
-                                'Rs.${_totalCashCollected.toStringAsFixed(2)}',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  color: Colors.green,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                'Expenses',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text(
-                                'Rs.${_totalExpenses.toStringAsFixed(2)}',
-                                style: TextStyle(
-                                  fontSize: 20,
-                                  color: Colors.red,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      Divider(height: 24),
-                      Text(
-                        'Expected Cash: Rs.${(_totalCashCollected - _totalExpenses).toStringAsFixed(2)}',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              SizedBox(height: 24),
-              Text(
-                'Denomination Details',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              SizedBox(height: 16),
-              _buildDenominationInput('500', _500Controller),
-              _buildDenominationInput('200', _200Controller),
-              _buildDenominationInput('100', _100Controller),
-              _buildDenominationInput('50', _50Controller),
-              _buildDenominationInput('20', _20Controller),
-              _buildDenominationInput('10', _10Controller),
-              _buildDenominationInput('5', _coin5Controller),
-              _buildDenominationInput('2', _coin2Controller),
-              _buildDenominationInput('1', _coin1Controller),
-              SizedBox(height: 24),
-              Card(
-                child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(
-                        'Total Amount: Rs.${_denominationTotal.toStringAsFixed(2)}',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      SizedBox(height: 8),
-                      Text(
-                        'Difference: Rs.${_difference.toStringAsFixed(2)}',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: _difference != 0 ? Colors.red : Colors.green,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              SizedBox(height: 24),
-              
-              // Save Button
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton.icon(
-                  onPressed: _saveDenomination,
-                  icon: Icon(Icons.save),
-                  label: Text('Save Denomination'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).primaryColor,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-              ),
-            ],
+        actions: [
+          IconButton(
+            icon: Icon(Icons.save),
+            onPressed: _saveDenomination,
+            tooltip: 'Save Denomination',
           ),
+        ],
+      ),
+      body: Padding(
+        padding: EdgeInsets.all(20),
+        child: ListView(
+          children: [
+            // Summary Card
+            Card(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              elevation: 2,
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Summary', style: Theme.of(context).textTheme.titleMedium),
+                    SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Cash Collection', style: TextStyle(fontWeight: FontWeight.bold)),
+                            Text('Rs.${_totalCashCollected.toStringAsFixed(2)}', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text('Expenses', style: TextStyle(fontWeight: FontWeight.bold)),
+                            Text('Rs.${_totalExpenses.toStringAsFixed(2)}', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 8),
+                    Text('Expected Cash: Rs.${(_totalCashCollected - _totalExpenses).toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ),
+            ),
+            SizedBox(height: 24),
+            // Denomination Details Card
+            Card(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              elevation: 2,
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Denomination Details', style: Theme.of(context).textTheme.titleMedium),
+                    SizedBox(height: 12),
+                    _buildDenominationInput('500', _500Controller),
+                    _buildDenominationInput('200', _200Controller),
+                    _buildDenominationInput('100', _100Controller),
+                    _buildDenominationInput('50', _50Controller),
+                    _buildDenominationInput('20', _20Controller),
+                    _buildDenominationInput('10', _10Controller),
+                    _buildDenominationInput('5', _coin5Controller),
+                    _buildDenominationInput('2', _coin2Controller),
+                    _buildDenominationInput('1', _coin1Controller),
+                  ],
+                ),
+              ),
+            ),
+            SizedBox(height: 24),
+            // Total and Difference Card
+            Card(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              elevation: 2,
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Total Amount:', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text('Rs.${_denominationTotal.toStringAsFixed(2)}', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    SizedBox(height: 8),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Difference:', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text(
+                          'Rs.${_difference.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: differenceColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

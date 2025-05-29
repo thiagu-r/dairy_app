@@ -120,28 +120,39 @@ class _UpdateDeliveryOrderState extends State<UpdateDeliveryOrder> with WidgetsB
                   // Add search bar
                   Padding(
                     padding: EdgeInsets.all(16),
-                    child: TextField(
-                      controller: _searchController,
-                      decoration: InputDecoration(
-                        labelText: 'Search Products',
-                        prefixIcon: Icon(Icons.search),
-                        border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Material(
+                      elevation: 1,
+                      borderRadius: BorderRadius.circular(14),
+                      child: TextField(
+                        controller: _searchController,
+                        decoration: InputDecoration(
+                          labelText: 'Search Products',
+                          prefixIcon: Icon(Icons.search),
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                          filled: true,
+                          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        ),
+                        onChanged: (value) {
+                          setState(() {
+                            _searchQuery = value.toLowerCase();
+                          });
+                        },
                       ),
-                      onChanged: (value) {
-                        setState(() {
-                          _searchQuery = value.toLowerCase();
-                        });
-                      },
                     ),
                   ),
                   Expanded(
                     child: ListView(
                       padding: EdgeInsets.all(16),
                       children: [
-                        Text(
-                          'Order Items',
-                          style: Theme.of(context).textTheme.titleLarge,
+                        Row(
+                          children: [
+                            Text(
+                              'Order Items',
+                              style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                            ),
+                            SizedBox(width: 12),
+                            Expanded(child: Divider(thickness: 1)),
+                          ],
                         ),
                         SizedBox(height: 16),
                         ..._buildFilteredItemsList(),
@@ -182,17 +193,32 @@ class _UpdateDeliveryOrderState extends State<UpdateDeliveryOrder> with WidgetsB
 
   Widget _buildItemCard(DeliveryOrderItem item) {
     return Card(
-      margin: EdgeInsets.only(bottom: 8),
+      margin: EdgeInsets.only(bottom: 14),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              item.productName,
-              style: Theme.of(context).textTheme.titleMedium,
+            Row(
+              children: [
+                Icon(Icons.inventory_2, color: Theme.of(context).colorScheme.primary, size: 28),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    item.productName,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                SizedBox(width: 8),
+                Text(
+                  'Total: Rs.${item.totalPrice}',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
             ),
-            SizedBox(height: 8),
+            SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
@@ -200,20 +226,28 @@ class _UpdateDeliveryOrderState extends State<UpdateDeliveryOrder> with WidgetsB
                     controller: _quantityControllers[item.product],
                     decoration: InputDecoration(
                       labelText: 'Delivered Quantity',
+                      filled: true,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                       helperText: 'Ordered: ${item.orderedQuantity}',
                     ),
                     keyboardType: TextInputType.number,
                   ),
                 ),
                 SizedBox(width: 8),
-                IconButton(
-                  icon: Icon(Icons.check_circle_outline),
-                  onPressed: () => _updateItemQuantity(item),
-                  tooltip: 'Update Quantity',
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    icon: Icon(Icons.check_circle_outline, color: Colors.green),
+                    onPressed: () => _updateItemQuantity(item),
+                    tooltip: 'Update Quantity',
+                  ),
                 ),
               ],
             ),
-            SizedBox(height: 8),
+            SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [

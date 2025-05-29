@@ -64,22 +64,76 @@ class _ListExpensesState extends State<ListExpenses> {
               : Column(
                   children: [
                     Expanded(
-                      child: ListView.builder(
-                        itemCount: _expenses.length,
-                        itemBuilder: (context, index) {
-                          final expense = _expenses[index];
-                          return ListTile(
-                            title: Text('[1m' + _expenseTypeLabel(expense.expenseType) + '\u001b[0m - ₹${expense.amount}'),
-                            subtitle: Text(expense.description ?? ''),
-                          );
-                        },
-                      ),
+                      child: _expenses.isEmpty
+                          ? Center(child: Text('No expenses found'))
+                          : ListView.separated(
+                              itemCount: _expenses.length,
+                              padding: EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                              separatorBuilder: (context, index) => SizedBox(height: 12),
+                              itemBuilder: (context, index) {
+                                final expense = _expenses[index];
+                                return Card(
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                  elevation: 2,
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                                    child: Row(
+                                      children: [
+                                        _expenseTypeIcon(expense.expenseType),
+                                        SizedBox(width: 16),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                _expenseTypeLabel(expense.expenseType),
+                                                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                                              ),
+                                              if (expense.description != null && expense.description!.isNotEmpty)
+                                                Padding(
+                                                  padding: const EdgeInsets.only(top: 4.0),
+                                                  child: Text(
+                                                    expense.description!,
+                                                    style: Theme.of(context).textTheme.bodyMedium,
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                        SizedBox(width: 12),
+                                        Text(
+                                          '₹${expense.amount.toStringAsFixed(2)}',
+                                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
                     ),
                     Padding(
                       padding: EdgeInsets.all(16),
-                      child: Text(
-                        'Total: ₹${_calculateTotal()}',
-                        style: Theme.of(context).textTheme.titleLarge,
+                      child: Card(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        elevation: 2,
+                        color: Theme.of(context).colorScheme.surfaceVariant,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Total:',
+                                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                              ),
+                              Text(
+                                '₹${_calculateTotal()}',
+                                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   ],
@@ -101,7 +155,9 @@ class _ListExpensesState extends State<ListExpenses> {
                   _loadLoadingOrderAndExpenses();
                 }
               },
-              child: Icon(Icons.add),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              child: Icon(Icons.add, color: Colors.white),
             ),
     );
   }
@@ -127,5 +183,36 @@ class _ListExpensesState extends State<ListExpenses> {
       case ExpenseType.allowance:
         return 'Daily Allowance';
     }
+  }
+
+  Widget _expenseTypeIcon(ExpenseType type) {
+    Color color;
+    IconData icon;
+    switch (type) {
+      case ExpenseType.food:
+        color = Colors.orange;
+        icon = Icons.fastfood;
+        break;
+      case ExpenseType.vehicle:
+        color = Colors.blue;
+        icon = Icons.build;
+        break;
+      case ExpenseType.fuel:
+        color = Colors.teal;
+        icon = Icons.local_gas_station;
+        break;
+      case ExpenseType.other:
+        color = Colors.grey;
+        icon = Icons.miscellaneous_services;
+        break;
+      case ExpenseType.allowance:
+        color = Colors.green;
+        icon = Icons.attach_money;
+        break;
+    }
+    return CircleAvatar(
+      backgroundColor: color.withOpacity(0.15),
+      child: Icon(icon, color: color),
+    );
   }
 }

@@ -116,31 +116,31 @@ class _AddExpenseState extends State<AddExpense> {
               DropdownButtonFormField<ExpenseType>(
                 decoration: InputDecoration(
                   labelText: 'Expense Type',
-                  border: OutlineInputBorder(),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                  filled: true,
+                  prefixIcon: Icon(Icons.category),
                 ),
                 value: _selectedExpenseType,
                 items: ExpenseType.values.map((type) {
                   String label;
+                  IconData icon;
                   switch (type) {
                     case ExpenseType.food:
-                      label = 'Food/Snacks';
-                      break;
+                      label = 'Food/Snacks'; icon = Icons.fastfood; break;
                     case ExpenseType.vehicle:
-                      label = 'Vehicle Repair/Maintenance';
-                      break;
+                      label = 'Vehicle Repair/Maintenance'; icon = Icons.build; break;
                     case ExpenseType.fuel:
-                      label = 'Fuel';
-                      break;
+                      label = 'Fuel'; icon = Icons.local_gas_station; break;
                     case ExpenseType.other:
-                      label = 'Other Expenses';
-                      break;
+                      label = 'Other Expenses'; icon = Icons.miscellaneous_services; break;
                     case ExpenseType.allowance:
-                      label = 'Daily Allowance';
-                      break;
+                      label = 'Daily Allowance'; icon = Icons.attach_money; break;
                   }
                   return DropdownMenuItem(
                     value: type,
-                    child: Text(label),
+                    child: Row(
+                      children: [Icon(icon, size: 20), SizedBox(width: 8), Text(label)],
+                    ),
                   );
                 }).toList(),
                 onChanged: (ExpenseType? value) {
@@ -149,12 +149,14 @@ class _AddExpenseState extends State<AddExpense> {
                   }
                 },
               ),
-              SizedBox(height: 16),
+              SizedBox(height: 20),
               TextFormField(
                 controller: _amountController,
                 decoration: InputDecoration(
                   labelText: 'Amount',
-                  border: OutlineInputBorder(),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                  filled: true,
+                  prefixIcon: Icon(Icons.currency_rupee),
                 ),
                 keyboardType: TextInputType.number,
                 validator: (value) {
@@ -167,19 +169,29 @@ class _AddExpenseState extends State<AddExpense> {
                   return null;
                 },
               ),
-              SizedBox(height: 16),
+              SizedBox(height: 20),
               TextFormField(
                 controller: _descriptionController,
                 decoration: InputDecoration(
                   labelText: 'Description (Optional)',
-                  border: OutlineInputBorder(),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                  filled: true,
+                  prefixIcon: Icon(Icons.description),
                 ),
                 maxLines: 3,
               ),
-              SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: _saveExpense,
-                child: Text('Save Expense'),
+              SizedBox(height: 32),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    textStyle: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  onPressed: _saveExpense,
+                  child: Text('Save Expense'),
+                ),
               ),
             ],
           ),

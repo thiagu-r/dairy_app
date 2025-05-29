@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../../models/public_sale.dart';
 import '../../models/loading_order.dart';
 import '../../services/offline_storage_service.dart';
+import 'denomination_screen.dart';
 
 class AddPublicSale extends StatefulWidget {
   final String saleDate;
@@ -164,7 +165,14 @@ class _AddPublicSaleState extends State<AddPublicSale> with WidgetsBindingObserv
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setDialogState) {
             return AlertDialog(
-              title: Text('Add Product'),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Row(
+                children: [
+                  Icon(Icons.add_shopping_cart_outlined, color: Theme.of(context).colorScheme.primary),
+                  SizedBox(width: 8),
+                  Text('Add Product'),
+                ],
+              ),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -173,7 +181,8 @@ class _AddPublicSaleState extends State<AddPublicSale> with WidgetsBindingObserv
                     DropdownButtonFormField<LoadingOrderItem>(
                       decoration: InputDecoration(
                         labelText: 'Select Product',
-                        border: OutlineInputBorder(),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        filled: true,
                       ),
                       value: selectedItem,
                       items: _loadingOrder?.items
@@ -195,13 +204,15 @@ class _AddPublicSaleState extends State<AddPublicSale> with WidgetsBindingObserv
                     if (selectedItem != null)
                       Text(
                         'Unit Price: Rs.${selectedItem!.unitPrice ?? "0"}',
-                        style: TextStyle(fontSize: 14),
+                        style: TextStyle(fontSize: 14, color: Colors.grey[700]),
                       ),
                     SizedBox(height: 16),
                     TextField(
                       decoration: InputDecoration(
                         labelText: 'Quantity',
-                        border: OutlineInputBorder(),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        filled: true,
+                        prefixIcon: Icon(Icons.numbers),
                       ),
                       keyboardType: TextInputType.numberWithOptions(decimal: true),
                       onChanged: (String value) {
@@ -213,10 +224,10 @@ class _AddPublicSaleState extends State<AddPublicSale> with WidgetsBindingObserv
                     SizedBox(height: 16),
                     if (selectedItem != null && quantity.isNotEmpty)
                       Container(
-                        padding: EdgeInsets.all(8),
+                        padding: EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: Colors.grey[100],
-                          borderRadius: BorderRadius.circular(8),
+                          color: Theme.of(context).colorScheme.surfaceVariant,
+                          borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
                           'Total: Rs.${_calculateItemTotal(selectedItem!, quantity)}',
@@ -235,7 +246,7 @@ class _AddPublicSaleState extends State<AddPublicSale> with WidgetsBindingObserv
                   onPressed: () => Navigator.pop(context),
                   child: Text('Cancel'),
                 ),
-                TextButton(
+                FilledButton(
                   onPressed: () {
                     if (selectedItem != null && quantity.isNotEmpty) {
                       _addItemToSale(selectedItem!, quantity);
@@ -315,7 +326,7 @@ class _AddPublicSaleState extends State<AddPublicSale> with WidgetsBindingObserv
     });
   }
 
-  Future<void> _saveSale() async {
+  Future<void> _saveSale({Map<int, int>? denominations}) async {
     if (_formKey.currentState?.validate() != true || _items.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Please add at least one item')),
@@ -345,6 +356,7 @@ class _AddPublicSaleState extends State<AddPublicSale> with WidgetsBindingObserv
             : _amountCollectedController.text,
         balanceAmount: _balanceAmount,
         items: _items,
+        // Add denominations here if you update the model
       );
 
       await _storageService.storePublicSale(sale);
@@ -367,139 +379,193 @@ class _AddPublicSaleState extends State<AddPublicSale> with WidgetsBindingObserv
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text('New Public Sale'),
+          title: Text('New Public Sale', style: Theme.of(context).textTheme.titleLarge),
           actions: [
             IconButton(
               icon: Icon(Icons.save),
-              onPressed: _saveSale,
+              onPressed: () async {
+                // On save, show denomination screen and wait for confirmation
+                if (_formKey.currentState?.validate() != true || _items.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Please add at least one item')),
+                  );
+                  return;
+                }
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => DenominationScreen(
+                      amount: double.tryParse(_amountCollectedController.text) ?? 0,
+                    ),
+                  ),
+                );
+                if (result != null && result is Map<int, int>) {
+                  await _saveSale(denominations: result);
+                }
+              },
+              tooltip: 'Save Sale',
             ),
           ],
         ),
+        floatingActionButton: _isLoading
+            ? null
+            : FloatingActionButton.extended(
+                onPressed: _showAddItemDialog,
+                icon: Icon(Icons.add),
+                label: Text('Add Item'),
+                backgroundColor: Theme.of(context).colorScheme.primary,
+              ),
         body: _isLoading
             ? Center(child: CircularProgressIndicator())
             : Form(
                 key: _formKey,
                 child: ListView(
-                  padding: EdgeInsets.all(16),
+                  padding: EdgeInsets.all(20),
                   children: [
-                    TextFormField(
-                      controller: _customerNameController,
-                      decoration: InputDecoration(
-                        labelText: 'Customer Name (Optional)',
-                        border: OutlineInputBorder(),
+                    // Customer Info Section
+                    Card(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      elevation: 2,
+                      child: Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Column(
+                          children: [
+                            TextFormField(
+                              controller: _customerNameController,
+                              decoration: InputDecoration(
+                                labelText: 'Customer Name (Optional)',
+                                prefixIcon: Icon(Icons.person_outline),
+                                filled: true,
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                            ),
+                            SizedBox(height: 16),
+                            TextFormField(
+                              controller: _customerPhoneController,
+                              decoration: InputDecoration(
+                                labelText: 'Customer Phone (Optional)',
+                                prefixIcon: Icon(Icons.phone),
+                                filled: true,
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              keyboardType: TextInputType.phone,
+                            ),
+                            SizedBox(height: 16),
+                            TextFormField(
+                              controller: _customerAddressController,
+                              decoration: InputDecoration(
+                                labelText: 'Customer Address (Optional)',
+                                prefixIcon: Icon(Icons.location_on_outlined),
+                                filled: true,
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              maxLines: 2,
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    SizedBox(height: 16),
-                    TextFormField(
-                      controller: _customerPhoneController,
-                      decoration: InputDecoration(
-                        labelText: 'Customer Phone (Optional)',
-                        border: OutlineInputBorder(),
-                      ),
-                      keyboardType: TextInputType.phone,
-                    ),
-                    SizedBox(height: 16),
-                    TextFormField(
-                      controller: _customerAddressController,
-                      decoration: InputDecoration(
-                        labelText: 'Customer Address (Optional)',
-                        border: OutlineInputBorder(),
-                      ),
-                      maxLines: 2,
                     ),
                     SizedBox(height: 24),
-                    Text(
-                      'Items',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
+
+                    // Items Section
+                    Text('Items', style: Theme.of(context).textTheme.titleMedium),
                     SizedBox(height: 8),
-                    ListView.builder(
-                      shrinkWrap: true,
-                      physics: NeverScrollableScrollPhysics(),
-                      itemCount: _items.length,
-                      itemBuilder: (context, index) {
-                        final item = _items[index];
-                        return Card(
+                    ..._items.map((item) => Card(
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 1,
                           child: ListTile(
+                            leading: Icon(Icons.shopping_bag_outlined, color: Theme.of(context).colorScheme.primary),
                             title: Text(item.productName),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Quantity: ${item.quantity}'),
-                                Text('Unit Price: Rs.${item.unitPrice}'),
-                                Text('Total: Rs.${item.totalPrice}'),
-                              ],
-                            ),
+                            subtitle: Text('Qty: ${item.quantity}  |  Unit: Rs.${item.unitPrice}\nTotal: Rs.${item.totalPrice}'),
                             trailing: IconButton(
-                              icon: Icon(Icons.delete),
+                              icon: Icon(Icons.delete_outline, color: Colors.red),
                               onPressed: () {
                                 setState(() {
-                                  _availableExtras[item.product] = 
-                                      (_availableExtras[item.product] ?? 0) + 
-                                      double.parse(item.quantity);
-                                  _items.removeAt(index);
+                                  _availableExtras[item.product] =
+                                      (_availableExtras[item.product] ?? 0) + double.parse(item.quantity);
+                                  _items.remove(item);
                                   _updateTotalPrice();
                                 });
                               },
                             ),
                           ),
-                        );
-                      },
-                    ),
-                    SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: _showAddItemDialog,
-                      child: Text('Add Item'),
-                    ),
+                        )),
+                    if (_items.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 16.0),
+                        child: Text('No items added yet.', style: TextStyle(color: Colors.grey)),
+                      ),
                     SizedBox(height: 24),
-                    Text(
-                      'Payment Details',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    SizedBox(height: 16),
-                    Text(
-                      'Total Price: Rs.$_totalPrice',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+
+                    // Payment Details Section
+                    Card(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      elevation: 2,
+                      child: Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Payment Details', style: Theme.of(context).textTheme.titleMedium),
+                            SizedBox(height: 16),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('Total Price:', style: TextStyle(fontSize: 16)),
+                                Text('Rs.$_totalPrice', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                            SizedBox(height: 12),
+                            TextFormField(
+                              controller: _amountCollectedController,
+                              decoration: InputDecoration(
+                                labelText: 'Amount Collected',
+                                prefixIcon: Icon(Icons.payments_outlined),
+                                prefixText: 'Rs.',
+                                filled: true,
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              keyboardType: TextInputType.numberWithOptions(decimal: true),
+                              onChanged: (value) => _updateBalanceAmount(),
+                            ),
+                            SizedBox(height: 12),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('Balance Amount:', style: TextStyle(fontSize: 16)),
+                                Text(
+                                  'Rs.$_balanceAmount',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: double.parse(_balanceAmount) > 0 ? Colors.red : Colors.green,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            SizedBox(height: 16),
+                            DropdownButtonFormField<String>(
+                              value: _paymentMethod,
+                              decoration: InputDecoration(
+                                labelText: 'Payment Method',
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                filled: true,
+                              ),
+                              items: [
+                                DropdownMenuItem(value: 'cash', child: Text('Cash')),
+                                DropdownMenuItem(value: 'online', child: Text('Online')),
+                              ],
+                              onChanged: (value) {
+                                setState(() {
+                                  _paymentMethod = value ?? 'cash';
+                                });
+                              },
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    SizedBox(height: 8),
-                    TextFormField(
-                      controller: _amountCollectedController,
-                      decoration: InputDecoration(
-                        labelText: 'Amount Collected',
-                        prefixText: 'Rs.',
-                        border: OutlineInputBorder(),
-                      ),
-                      keyboardType: TextInputType.numberWithOptions(decimal: true),
-                      onChanged: (value) => _updateBalanceAmount(),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      'Balance Amount: Rs.$_balanceAmount',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: double.parse(_balanceAmount) > 0 ? Colors.red : Colors.green,
-                      ),
-                    ),
-                    SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      value: _paymentMethod,
-                      decoration: InputDecoration(
-                        labelText: 'Payment Method',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: [
-                        DropdownMenuItem(value: 'cash', child: Text('Cash')),
-                        DropdownMenuItem(value: 'online', child: Text('Online')),
-                      ],
-                      onChanged: (value) {
-                        setState(() {
-                          _paymentMethod = value ?? 'cash';
-                        });
-                      },
-                    ),
+                    SizedBox(height: 32),
                   ],
                 ),
               ),

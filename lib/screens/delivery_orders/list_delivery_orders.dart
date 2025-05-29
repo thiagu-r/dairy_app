@@ -118,41 +118,57 @@ class _ListDeliveryOrdersState extends State<ListDeliveryOrders> {
     }
     
     return Card(
-      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: isUpdated ? Colors.green.withOpacity(0.1) : null,
-      child: ListTile(
-        title: Text(
-          order.sellerName,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: isUpdated ? Colors.green : Colors.black,
-          ),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Order #${order.orderNumber}'),
-            Text('Quantity: ${totalDeliveredQuantity.toStringAsFixed(3)}'),
-            Text('Amount: Rs.${order.totalPrice}'),
-            if (isUpdated)
-              Text(
-                'Updated on: ${order.actualDeliveryDate}',
-                style: TextStyle(
-                  color: Colors.green,
-                  fontSize: 12,
+      margin: EdgeInsets.symmetric(horizontal: 0, vertical: 12),
+      color: isUpdated ? Colors.green.withOpacity(0.08) : Theme.of(context).colorScheme.surfaceVariant,
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: () => _showOrderDetails(order),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+          child: Row(
+            children: [
+              Icon(Icons.store, color: Theme.of(context).colorScheme.primary, size: 32),
+              SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      order.sellerName,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: isUpdated ? Colors.green : Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text('Order #${order.orderNumber}', style: TextStyle(fontWeight: FontWeight.w500)),
+                    Text('Quantity: ${totalDeliveredQuantity.toStringAsFixed(3)}'),
+                    Text('Amount: Rs.${order.totalPrice}', style: TextStyle(fontWeight: FontWeight.bold)),
+                    if (isUpdated)
+                      Text(
+                        'Updated on: ${order.actualDeliveryDate}',
+                        style: TextStyle(
+                          color: Colors.green,
+                          fontSize: 12,
+                        ),
+                      ),
+                  ],
                 ),
               ),
-          ],
+              SizedBox(width: 8),
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (isUpdated)
+                    Icon(Icons.check_circle, color: Colors.green, size: 18),
+                  Icon(Icons.chevron_right, color: Theme.of(context).colorScheme.primary),
+                ],
+              ),
+            ],
+          ),
         ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (isUpdated)
-              Icon(Icons.check_circle, color: Colors.green, size: 16),
-            Icon(Icons.chevron_right),
-          ],
-        ),
-        onTap: () => _showOrderDetails(order),
       ),
     );
   }
@@ -178,17 +194,24 @@ class _ListDeliveryOrdersState extends State<ListDeliveryOrders> {
               children: [
                 Text(
                   'Orders for $_selectedDate',
-                  style: Theme.of(context).textTheme.titleLarge,
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
                 ),
-                SizedBox(height: 16),
-                TextField(
-                  controller: _searchController,
-                  decoration: InputDecoration(
-                    hintText: 'Search by seller name',
-                    prefixIcon: Icon(Icons.search),
-                    border: OutlineInputBorder(),
+                Divider(height: 24, thickness: 1),
+                SizedBox(height: 8),
+                Material(
+                  elevation: 1,
+                  borderRadius: BorderRadius.circular(14),
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Search by seller name',
+                      prefixIcon: Icon(Icons.search),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                      filled: true,
+                      contentPadding: EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                    ),
+                    onChanged: _filterOrders,
                   ),
-                  onChanged: _filterOrders,
                 ),
               ],
             ),
@@ -200,6 +223,7 @@ class _ListDeliveryOrdersState extends State<ListDeliveryOrders> {
                     ? Center(child: Text('No orders found'))
                     : ListView.builder(
                         itemCount: _filteredOrders.length,
+                        padding: EdgeInsets.symmetric(horizontal: 8),
                         itemBuilder: (context, index) {
                           final order = _filteredOrders[index];
                           return _buildOrderCard(order);

@@ -429,6 +429,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildHomeContent(BuildContext context) {
     final networkProvider = Provider.of<NetworkProvider>(context);
+    final authProvider = Provider.of<AuthProvider>(context);
+    final userName = authProvider.currentUser?.name ?? 'User';
     
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -458,24 +460,40 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
             ),
-            
-          Text(
-            'Dashboard',
-            style: Theme.of(context).textTheme.headlineMedium,
+          // Welcome message and dashboard header
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Welcome, $userName',
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Theme.of(context).colorScheme.primary),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'Dashboard',
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+            ],
           ),
           SizedBox(height: 16),
-          
           Expanded(
             child: GridView.count(
               crossAxisCount: 2,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
+              crossAxisSpacing: 24,
+              mainAxisSpacing: 24,
+              childAspectRatio: 1,
+              padding: EdgeInsets.only(bottom: 16),
               children: [
                 _buildMenuCard(
                   context: context,
                   title: 'Sync Data',
                   icon: Icons.sync,
-                  color: Colors.teal,
+                  color: Theme.of(context).colorScheme.primary,
                   onTap: _syncData,
                   isLoading: _isSyncing,
                 ),
@@ -483,7 +501,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   context: context,
                   title: 'Load Orders',
                   icon: Icons.downloading,
-                  color: Colors.blue,
+                  color: Theme.of(context).colorScheme.secondary,
                   onTap: () => Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => LoadOrdersDashboard()),
@@ -566,30 +584,33 @@ class _HomeScreenState extends State<HomeScreen> {
     bool isLoading = false,
   }) {
     return Card(
-      elevation: 4,
+      color: Theme.of(context).colorScheme.surfaceVariant,
+      elevation: 2,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: InkWell(
         onTap: isLoading ? null : onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: EdgeInsets.all(16),
+        borderRadius: BorderRadius.circular(20),
+        splashColor: color.withOpacity(0.1),
+        highlightColor: color.withOpacity(0.05),
+        child: AnimatedContainer(
+          duration: Duration(milliseconds: 150),
+          padding: EdgeInsets.symmetric(vertical: 28, horizontal: 8),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (isLoading)
                 CircularProgressIndicator(color: color)
               else
-                Icon(icon, size: 48, color: color),
-              SizedBox(height: 16),
+                Icon(icon, size: 44, color: color),
+              SizedBox(height: 14),
               Text(
                 title,
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   color: color,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
