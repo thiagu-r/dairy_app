@@ -22,6 +22,8 @@ import 'return_orders/return_orders_screen.dart';
 import 'expenses/expenses_dashboard.dart';
 import 'login_screen.dart';
 import 'denomination/denomination_screen.dart';
+import 'package:intl/intl.dart';
+import '../services/offline_storage_service.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -30,7 +32,120 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final ApiService _apiService = ApiService();
+  final OfflineStorageService _storageService = OfflineStorageService();
   bool _isSyncing = false;
+
+  // Metrics for Loading Order
+  String loadingOrderRoute = '';
+  double loadingOrderTotalQty = 0.0;
+  int loadingOrderProductCount = 0;
+  String deliveryOrderRoute = '';
+  int deliveryOrderSellerCount = 0;
+  int publicSalesCount = 0;
+  double publicSalesTotal = 0.0;
+  int brokenProductsCount = 0;
+  int returnedAvailableQty = 0;
+  int expensesCount = 0;
+  double expensesTotal = 0.0;
+  double denominationCollected = 0.0;
+  double denominationBalance = 0.0;
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMetrics();
+  }
+
+  Future<void> _loadMetrics() async {
+    final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+    // Loading Order
+    final loadingOrders = await _storageService.getLoadingOrdersByDate(todayStr);
+    LoadingOrder? loadingOrder;
+    if (loadingOrders.isNotEmpty) {
+      loadingOrder = loadingOrders.first;
+      loadingOrderRoute = loadingOrder.route.toString();
+      loadingOrderTotalQty = loadingOrder.items.fold(0.0, (sum, item) => sum + (double.tryParse(item.totalQuantity) ?? 0.0));
+      loadingOrderProductCount = loadingOrder.items.length;
+    } else {
+      loadingOrderRoute = '-';
+      loadingOrderTotalQty = 0.0;
+      loadingOrderProductCount = 0;
+    }
+
+    // Delivery Order
+    final deliveryOrders = await _storageService.getDeliveryOrdersByDate(todayStr);
+    if (deliveryOrders.isNotEmpty) {
+      deliveryOrderRoute = deliveryOrders.first.route.toString();
+      deliveryOrderSellerCount = deliveryOrders.length;
+    } else {
+      deliveryOrderRoute = '-';
+      deliveryOrderSellerCount = 0;
+    }
+
+    // Public Sales
+    final publicSales = await _storageService.getPublicSalesByDate(todayStr);
+    publicSalesCount = publicSales.length;
+    publicSalesTotal = publicSales.fold(0.0, (sum, sale) => sum + (double.tryParse(sale.totalPrice) ?? 0.0));
+
+    // Broken Orders (filter by date)
+    final brokenOrders = (await _storageService.getBrokenOrders())
+        .where((order) => order.date == todayStr)
+        .toList();
+    brokenProductsCount = brokenOrders.fold(0, (sum, order) =>
+      sum + order.items.fold(0, (itemSum, item) => itemSum + item.quantity.toInt())
+    );
+
+    // Returned Orders (Available Products)
+    returnedAvailableQty = 0;
+    if (loadingOrder != null) {
+      // Get delivery orders and public sales for today/route
+      final deliveryOrdersByRoute = await _storageService.getDeliveryOrdersByDateAndRoute(todayStr, loadingOrder.route);
+      final publicSalesByRoute = await _storageService.getPublicSalesByDateAndRoute(todayStr, loadingOrder.route);
+
+      // Calculate used quantities
+      Map<int, double> usedQuantities = {};
+      for (var order in deliveryOrdersByRoute) {
+        for (var item in order.items) {
+          usedQuantities[item.product] = (usedQuantities[item.product] ?? 0) + double.parse(item.deliveredQuantity);
+        }
+      }
+      for (var sale in publicSalesByRoute) {
+        for (var item in sale.items) {
+          usedQuantities[item.product] = (usedQuantities[item.product] ?? 0) + double.parse(item.quantity);
+        }
+      }
+      for (var item in loadingOrder.items) {
+        if (item.brokenQuantity != null && item.brokenQuantity! > 0) {
+          usedQuantities[item.product] = (usedQuantities[item.product] ?? 0) + item.brokenQuantity!;
+        }
+      }
+      // Calculate available quantities
+      for (var loadingItem in loadingOrder.items) {
+        double totalLoaded = double.parse(loadingItem.totalQuantity);
+        double used = usedQuantities[loadingItem.product] ?? 0;
+        double available = totalLoaded - used;
+        returnedAvailableQty += available.toInt();
+      }
+    }
+
+    // Expenses
+    final expenses = await _storageService.getExpensesByDate(todayStr);
+    expensesCount = expenses.length;
+    expensesTotal = expenses.fold(0.0, (sum, exp) => sum + exp.amount);
+
+    // Denomination
+    final denomination = await _storageService.getDenominationByDate(todayStr);
+    if (denomination != null) {
+      denominationCollected = denomination.totalCashCollected;
+      denominationBalance = denomination.difference;
+    }
+
+    setState(() {
+      isLoading = false;
+    });
+  }
 
   Future<void> _syncData() async {
     if (_isSyncing) return;
@@ -423,198 +538,143 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
-      body: _buildHomeContent(context),
-    );
-  }
-
-  Widget _buildHomeContent(BuildContext context) {
-    final networkProvider = Provider.of<NetworkProvider>(context);
-    final authProvider = Provider.of<AuthProvider>(context);
-    final userName = authProvider.currentUser?.name ?? 'User';
-    
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Network status indicator
-          if (!networkProvider.isOnline)
-            Container(
-              padding: EdgeInsets.all(12),
-              margin: EdgeInsets.only(bottom: 16),
-              decoration: BoxDecoration(
-                color: Colors.orange.shade50,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.orange.shade200),
-              ),
-              child: Row(
+      body: isLoading
+          ? Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: ListView(
                 children: [
-                  Icon(Icons.wifi_off, color: Colors.orange.shade800),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'You are currently offline. Some features may be limited.',
-                      style: TextStyle(color: Colors.orange.shade800),
+                  InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => LoadOrdersDashboard()),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(16),
+                    child: DashboardMetricCard(
+                      icon: Icons.route,
+                      title: 'Loading Order',
+                      metrics: [
+                        'Route: $loadingOrderRoute',
+                        'Total Qty: ${loadingOrderTotalQty.toStringAsFixed(2)}',
+                        'Products: $loadingOrderProductCount',
+                      ],
+                      color: Colors.blue,
+                    ),
+                  ),
+                  InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => DeliveryOrdersDashboard()),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(16),
+                    child: DashboardMetricCard(
+                      icon: Icons.local_shipping,
+                      title: 'Delivery Order',
+                      metrics: [
+                        'Route: $deliveryOrderRoute',
+                        'Sellers: $deliveryOrderSellerCount',
+                      ],
+                      color: Colors.green,
+                    ),
+                  ),
+                  InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => PublicSalesDashboard()),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(16),
+                    child: DashboardMetricCard(
+                      icon: Icons.store,
+                      title: 'Public Sales',
+                      metrics: [
+                        'Sales: $publicSalesCount',
+                        'Total: ₹${publicSalesTotal.toStringAsFixed(2)}',
+                      ],
+                      color: Colors.orange,
+                    ),
+                  ),
+                  InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => BrokenOrdersScreen()),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(16),
+                    child: DashboardMetricCard(
+                      icon: Icons.error,
+                      title: 'Broken Orders',
+                      metrics: [
+                        'Broken Products: $brokenProductsCount',
+                      ],
+                      color: Colors.red,
+                    ),
+                  ),
+                  InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => ReturnOrdersScreen()),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(16),
+                    child: DashboardMetricCard(
+                      icon: Icons.assignment_return,
+                      title: 'Returned Orders',
+                      metrics: [
+                        'Available Qty: $returnedAvailableQty',
+                      ],
+                      color: Colors.purple,
+                    ),
+                  ),
+                  InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => ExpensesDashboard()),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(16),
+                    child: DashboardMetricCard(
+                      icon: Icons.money_off,
+                      title: 'Expenses',
+                      metrics: [
+                        'Expenses: $expensesCount',
+                        'Total: ₹${expensesTotal.toStringAsFixed(2)}',
+                      ],
+                      color: Colors.teal,
+                    ),
+                  ),
+                  InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => DenominationScreen()),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(16),
+                    child: DashboardMetricCard(
+                      icon: Icons.account_balance_wallet,
+                      title: 'Denomination',
+                      metrics: [
+                        'Collected: ₹${denominationCollected.toStringAsFixed(2)}',
+                        'Balance: ₹${denominationBalance.toStringAsFixed(2)}',
+                      ],
+                      color: Colors.brown,
                     ),
                   ),
                 ],
               ),
             ),
-          // Welcome message and dashboard header
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Dashboard',
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          SizedBox(height: 8),
-          Expanded(
-            child: GridView.count(
-              crossAxisCount: 2,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 1.15,
-              padding: EdgeInsets.only(bottom: 8),
-              children: [
-                _buildMenuCard(
-                  context: context,
-                  title: 'Sync Data',
-                  icon: Icons.sync,
-                  color: Theme.of(context).colorScheme.primary,
-                  onTap: _syncData,
-                  isLoading: _isSyncing,
-                ),
-                _buildMenuCard(
-                  context: context,
-                  title: 'Load Orders',
-                  icon: Icons.downloading,
-                  color: Theme.of(context).colorScheme.secondary,
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => LoadOrdersDashboard()),
-                  ),
-                ),
-                _buildMenuCard(
-                  context: context,
-                  title: 'Delivery Orders',
-                  icon: Icons.local_shipping,
-                  color: Colors.green,
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => DeliveryOrdersDashboard()),
-                  ),
-                ),
-                _buildMenuCard(
-                  context: context,
-                  title: 'Public Sales',
-                  icon: Icons.store,
-                  color: Colors.purple,
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => PublicSalesDashboard()),
-                  ),
-                ),
-                _buildMenuCard(
-                  context: context,
-                  title: 'Broken Orders',
-                  icon: Icons.broken_image,
-                  color: Colors.red,
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => BrokenOrdersScreen()),
-                  ),
-                ),
-                _buildMenuCard(
-                  context: context,
-                  title: 'Returned Orders',
-                  icon: Icons.assignment_return,
-                  color: Colors.orange,
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => ReturnOrdersScreen()),
-                  ),
-                ),
-                _buildMenuCard(
-                  context: context,
-                  title: 'Denominations',
-                  icon: Icons.attach_money,
-                  color: Colors.teal,
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => DenominationScreen()),
-                  ),
-                ),
-                _buildMenuCard(
-                  context: context,
-                  title: 'Expenses',
-                  icon: Icons.account_balance_wallet,
-                  color: Colors.indigo,
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => ExpensesDashboard()),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
-  
-  Widget _buildMenuCard({
-    required BuildContext context,
-    required String title,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-    bool isLoading = false,
-  }) {
-    return Card(
-      color: Theme.of(context).colorScheme.surfaceVariant,
-      elevation: 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: InkWell(
-        onTap: isLoading ? null : onTap,
-        borderRadius: BorderRadius.circular(12),
-        splashColor: color.withOpacity(0.1),
-        highlightColor: color.withOpacity(0.05),
-        child: AnimatedContainer(
-          duration: Duration(milliseconds: 150),
-          padding: EdgeInsets.symmetric(vertical: 14, horizontal: 4),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (isLoading)
-                SizedBox(height: 32, width: 32, child: CircularProgressIndicator(color: color, strokeWidth: 2))
-              else
-                Icon(icon, size: 28, color: color),
-              SizedBox(height: 8),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: color,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-  
+
   void _showComingSoonDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -627,6 +687,55 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Text('OK'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class DashboardMetricCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final List<String> metrics;
+  final Color color;
+
+  const DashboardMetricCard({
+    required this.icon,
+    required this.title,
+    required this.metrics,
+    required this.color,
+    Key? key,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: EdgeInsets.symmetric(vertical: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          children: [
+            CircleAvatar(
+              backgroundColor: color.withOpacity(0.1),
+              child: Icon(icon, color: color, size: 32),
+              radius: 28,
+            ),
+            SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                  ...metrics.map((m) => Padding(
+                        padding: const EdgeInsets.only(top: 4.0),
+                        child: Text(m, style: TextStyle(fontSize: 15)),
+                      )),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
